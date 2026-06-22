@@ -1,0 +1,30 @@
+# Ignore .htaccess
+/.htaccess
+/.htaccess.*
+
+# Ignore upload directories
+/uploads/
+/modules/*/uploads/
+
+# Ignore CI session files
+ci_sessions/
+/ci_sessions/
+
+/application/vendor/
+!/modules/*/vendor/
+
+# Ignore all .lock and .zip files
+*.lock
+*.zip
+*.xlsx
+*.xls
+*.sql
+!/backups/*.sql
+
+error_log
+/application/logs
+
+/application/config/app-config.php
+/application/cache/*
+
+/install123/

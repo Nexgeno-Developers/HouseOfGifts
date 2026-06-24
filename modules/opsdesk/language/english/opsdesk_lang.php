@@ -43,6 +43,6 @@ $lang['opsdesk_unknown_product']        = 'Unknown product';
 $lang['opsdesk_custom_product_ref']     = 'Custom Product Ref';
 $lang['opsdesk_sku_optional']           = 'Auto if empty';
 $lang['opsdesk_qty_per_unit']           = 'Qty per Combo Unit';
-$lang['opsdesk_combo_item_help']        = 'Link a Perfex product and/or custom reference. SKU is auto-generated from the product ID if left blank.';
+$lang['opsdesk_combo_item_help']        = 'Link a Perfex product and/or custom reference. SKU is auto-generated from the product ID.';
 $lang['opsdesk_view_inventory']         = 'View Inventory Breakdown';
 $lang['opsdesk_combo_inventory_breakdown'] = 'Combo Inventory Breakdown';

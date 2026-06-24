@@ -106,15 +106,15 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <?php echo render_input('custom_product_ref', 'opsdesk_custom_product_ref', '', 'text'); ?>
-                            </div>
-                            <div class="col-md-2">
-                                <?php echo render_input('sku', 'opsdesk_sku', '', 'text', [
+                            <!-- <div class="col-md-3">
+                                <?php // echo render_input('custom_product_ref', 'opsdesk_custom_product_ref', '', 'text'); ?>
+                            </div> -->
+                            <!-- <div class="col-md-2">
+                                <?php /* echo render_input('sku', 'opsdesk_sku', '', 'text', [
                                     'placeholder' => _l('opsdesk_sku_optional'),
-                                ]); ?>
-                            </div>
-                            <div class="col-md-2">
+                                ]); */ ?>
+                            </div> -->
+                            <div class="col-md-3">
                                 <?php echo render_input('quantity_per_unit', 'opsdesk_qty_per_unit', '1', 'number', [
                                     'min'  => '0.0001',
                                     'step' => 'any',

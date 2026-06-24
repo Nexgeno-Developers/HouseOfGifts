@@ -39,6 +39,7 @@
                                     <i class="fa fa-search"></i> <?php echo _l('opsdesk_check_availability'); ?>
                                 </button>
                             </div>
+                            
                         </div>
 
                         <div id="opsdesk_loading" class="hide text-center mtop20">
@@ -46,6 +47,46 @@
                         </div>
 
                         <div id="opsdesk_alert" class="hide alert mtop15"></div>
+
+                        <div id="opsdesk_editor_panel" class="hide panel panel-default mtop20">
+                            <div class="panel-heading">
+                                <h4 class="panel-title">
+                                    <?php echo _l('opsdesk_edit_combo_items'); ?>
+                                </h4>
+                            </div>
+                            <div class="panel-body">
+                                <div class="row mtop10">
+                                    <div class="col-md-8">
+                                        <div class="form-group">
+                                            <label class="control-label"><?php echo _l('opsdesk_add_item'); ?></label>
+                                            <select id="opsdesk_product_selector" class="selectpicker" data-width="100%"
+                                                data-live-search="true"
+                                                data-none-selected-text="<?php echo _l('dropdown_non_selected_tex'); ?>">
+                                                <option value=""></option>
+                                                <?php foreach ($products as $product) { ?>
+                                                <option value="<?php echo (int) $product['id']; ?>"
+                                                    data-subtext="<?php echo e($product['subtext'] ?? ''); ?>">
+                                                    <?php echo e($product['label']); ?>
+                                                </option>
+                                                <?php } ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="control-label">&nbsp;</label>
+                                        <button type="button" id="opsdesk_add_item_btn" class="btn btn-success btn-block">
+                                            <i class="fa fa-plus"></i> <?php echo _l('opsdesk_add'); ?>
+                                        </button>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="control-label">&nbsp;</label>
+                                        <button type="button" id="opsdesk_reset_items_btn" class="btn btn-default btn-block">
+                                            <i class="fa fa-refresh"></i> <?php echo _l('reset'); ?>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="table-responsive mtop20">
                             <table class="table table-striped table-bordered" id="opsdesk_availability_table">
@@ -56,11 +97,14 @@
                                         <th class="text-right"><?php echo _l('opsdesk_available_stock'); ?></th>
                                         <th class="text-right"><?php echo _l('opsdesk_quantity_needed'); ?></th>
                                         <th class="text-center"><?php echo _l('opsdesk_status'); ?></th>
+                                        <th class="text-center" style="width: 80px;">
+                                            <?php echo _l('opsdesk_actions'); ?>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody id="opsdesk_availability_body">
                                     <tr id="opsdesk_empty_row">
-                                        <td colspan="5" class="text-center text-muted">
+                                        <td colspan="6" class="text-center text-muted">
                                             <?php echo _l('opsdesk_select_combo_to_begin'); ?>
                                         </td>
                                     </tr>

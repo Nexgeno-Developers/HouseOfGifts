@@ -29,8 +29,12 @@ class Opsdesk extends AdminController
             access_denied('opsdesk');
         }
 
-        $data['title']  = _l('opsdesk_inventory_viewer');
-        $data['combos'] = $this->opsdesk_combos_model->get('', true);
+        $data['title']    = _l('opsdesk_inventory_viewer');
+        $data['combos']   = $this->opsdesk_combos_model->get('', true);
+        $data['products'] = opsdesk_get_products_for_dropdown([
+            'active_only' => true,
+            'exclude_variation_parents' => true,
+        ]);
 
         $this->app_scripts->add(
             'opsdesk-inventory-js',
@@ -41,7 +45,7 @@ class Opsdesk extends AdminController
     }
 
     /**
-     * AJAX: real-time availability breakdown.
+     * AJAX: get available products for editor.
      */
     public function ajax_availability()
     {
@@ -51,6 +55,18 @@ class Opsdesk extends AdminController
 
         if (!has_permission('opsdesk', '', 'view') && !staff_can('view', 'opsdesk')) {
             ajax_access_denied();
+        }
+
+        $action = $this->input->post('action');
+
+        if ($action === 'get_available_products') {
+            $this->get_available_products_for_editor();
+            return;
+        }
+
+        if ($action === 'get_product_details') {
+            $this->get_product_details_for_editor();
+            return;
         }
 
         $combo_id        = (int) $this->input->post('combo_id');
@@ -78,6 +94,121 @@ class Opsdesk extends AdminController
         echo json_encode([
             'success' => true,
             'data'    => $result,
+        ]);
+        die;
+    }
+
+    /**
+     * Helper: fetch available products for adding to combo.
+     */
+    private function get_available_products_for_editor()
+    {
+        $products = opsdesk_get_products_for_dropdown([
+            'active_only' => true,
+            'exclude_variation_parents' => true,
+        ]);
+
+        $formatted = [];
+        foreach ($products as $product) {
+            $formatted[] = [
+                'id'      => (int) $product['id'],
+                'label'   => $product['label'],
+                'subtext' => $product['subtext'] ?? '',
+            ];
+        }
+
+        echo json_encode([
+            'success' => true,
+            'products' => $formatted,
+        ]);
+        die;
+    }
+
+    /**
+     * Helper: fetch product details including availability.
+     */
+    private function get_product_details_for_editor()
+    {
+        $product_id = (int) $this->input->post('product_id');
+
+        if ($product_id <= 0) {
+            echo json_encode([
+                'success' => false,
+                'message' => _l('opsdesk_invalid_request'),
+            ]);
+            die;
+        }
+
+        $product = opsdesk_get_product_by_id($product_id);
+        if (!$product) {
+            echo json_encode([
+                'success' => false,
+                'message' => _l('opsdesk_invalid_request'),
+            ]);
+            die;
+        }
+
+        $order_quantity = (float) $this->input->post('order_quantity') ?: 1;
+
+        $available_stock = $this->opsdesk_inventory_model->get_available_for_combo_item(
+            $product['sku'],
+            $product_id
+        );
+
+        echo json_encode([
+            'success' => true,
+            'product' => [
+                'product_item_id' => $product_id,
+                'sku' => $product['sku'],
+                'product_name' => $product['label'],
+                'quantity_per_unit' => 1.0,
+                'available_stock' => $available_stock,
+            ],
+        ]);
+        die;
+    }
+
+    /**
+     * AJAX: seed random stock quantities for testing.
+     */
+    public function seed_random_stock()
+    {
+        if (!has_permission('opsdesk', '', 'view') && !staff_can('view', 'opsdesk')) {
+            ajax_access_denied();
+        }
+
+        $updated_count = 0;
+
+        // Update OpsDesk inventory table
+        $inventory_items = $this->opsdesk_inventory_model->get();
+        foreach ($inventory_items as $item) {
+            $random_qty = mt_rand(10, 500);
+            $this->opsdesk_inventory_model->update([
+                'quantity_available' => $random_qty,
+            ], $item['id']);
+            $updated_count++;
+        }
+
+        // If Warehouse module is active, update warehouse inventory too
+        if (opsdesk_is_warehouse_module_active() && $this->db->table_exists(db_prefix() . 'inventory_manage')) {
+            $this->db->select(db_prefix() . 'inventory_manage.id, ' . db_prefix() . 'inventory_manage.commodity_id');
+            $result = $this->db->get(db_prefix() . 'inventory_manage');
+            
+            if ($result->num_rows() > 0) {
+                foreach ($result->result_array() as $warehouse_item) {
+                    $random_qty = mt_rand(10, 500);
+                    $this->db->where('id', (int) $warehouse_item['id']);
+                    $this->db->update(db_prefix() . 'inventory_manage', [
+                        'inventory_number' => $random_qty,
+                    ]);
+                }
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'message' => _l('opsdesk_stock_seeded', $updated_count),
+            'updated' => $updated_count,
         ]);
         die;
     }

@@ -1,0 +1,48 @@
+<?php
+
+defined('BASEPATH') or exit('No direct script access allowed');
+
+$lang['opsdesk']                        = 'OpsDesk';
+$lang['opsdesk_inventory_viewer']       = 'Inventory Viewer';
+$lang['opsdesk_combos']                 = 'Combo Products';
+$lang['opsdesk_combo']                  = 'Combo Product';
+$lang['opsdesk_new_combo']              = 'New Combo';
+$lang['opsdesk_edit_combo']             = 'Edit Combo';
+$lang['opsdesk_combo_name']             = 'Combo Name';
+$lang['opsdesk_description']            = 'Description';
+$lang['opsdesk_status']                 = 'Status';
+$lang['opsdesk_active']                 = 'Active';
+$lang['opsdesk_inactive']               = 'Inactive';
+$lang['opsdesk_select_combo']           = 'Select Combo';
+$lang['opsdesk_order_quantity']         = 'Order Quantity';
+$lang['opsdesk_check_availability']     = 'Check Availability';
+$lang['opsdesk_check']                  = 'Check';
+$lang['opsdesk_sku']                    = 'SKU';
+$lang['opsdesk_product']                = 'Product';
+$lang['opsdesk_available_stock']        = 'Available Stock';
+$lang['opsdesk_quantity_needed']        = 'Quantity Needed';
+$lang['opsdesk_sufficient']             = 'Sufficient';
+$lang['opsdesk_insufficient']           = 'Insufficient';
+$lang['opsdesk_order_fulfillable']      = 'Order can be fulfilled';
+$lang['opsdesk_order_not_fulfillable']  = 'Order cannot be fulfilled';
+$lang['opsdesk_select_combo_to_begin']  = 'Select a combo and enter a quantity to check availability.';
+$lang['opsdesk_error_loading']          = 'Unable to load availability data.';
+$lang['opsdesk_invalid_request']        = 'Invalid combo or quantity.';
+$lang['opsdesk_combo_not_found']        = 'Combo not found or inactive.';
+$lang['opsdesk_no_combos']              = 'No combos defined yet.';
+$lang['opsdesk_combo_items']            = 'Component Items';
+$lang['opsdesk_no_combo_items']         = 'No component items mapped to this combo.';
+$lang['opsdesk_add_combo_item']         = 'Add Component Item';
+$lang['opsdesk_combo_item']             = 'Component Item';
+$lang['opsdesk_combo_item_added']       = 'Component item added successfully.';
+$lang['opsdesk_combo_item_add_failed']  = 'Failed to add component item.';
+$lang['opsdesk_perfex_product']         = 'Perfex Product';
+$lang['opsdesk_product_select']         = 'Product (Invoice / Warehouse)';
+$lang['opsdesk_stock']                  = 'Stock';
+$lang['opsdesk_unknown_product']        = 'Unknown product';
+$lang['opsdesk_custom_product_ref']     = 'Custom Product Ref';
+$lang['opsdesk_sku_optional']           = 'Auto if empty';
+$lang['opsdesk_qty_per_unit']           = 'Qty per Combo Unit';
+$lang['opsdesk_combo_item_help']        = 'Link a Perfex product and/or custom reference. SKU is auto-generated from the product ID if left blank.';
+$lang['opsdesk_view_inventory']         = 'View Inventory Breakdown';
+$lang['opsdesk_combo_inventory_breakdown'] = 'Combo Inventory Breakdown';

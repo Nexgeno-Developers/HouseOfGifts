@@ -16,6 +16,7 @@ $lang['opsdesk_inactive']               = 'Inactive';
 $lang['opsdesk_select_combo']           = 'Select Combo';
 $lang['opsdesk_order_quantity']         = 'Order Quantity';
 $lang['opsdesk_check_availability']     = 'Check Availability';
+$lang['opsdesk_check_new_availability'] = 'Check Availability for Updated Combo';
 $lang['opsdesk_check']                  = 'Check';
 $lang['opsdesk_sku']                    = 'SKU';
 $lang['opsdesk_product']                = 'Product';

@@ -409,4 +409,45 @@ class Opsdesk extends AdminController
 
         $this->load->view('combo_inventory', $data);
     }
+
+
+    public function speculative_combo_invententory_check(){
+        $items = $this->get_combo_items($combo_id);
+        $components = [];
+        $is_fulfillable = true;
+
+        foreach ($items as $item) {
+            $required_qty = (float) $item['quantity_per_unit'] * (float) $order_quantity;
+            $product_id   = $item['product_item_id'] ? (int) $item['product_item_id'] : null;
+            $available    = $this->opsdesk_inventory_model->get_available_for_combo_item(
+                $item['sku'],
+                $product_id
+            );
+
+            $is_sufficient = $available >= $required_qty;
+
+            if (!$is_sufficient) {
+                $is_fulfillable = false;
+            }
+
+            $components[] = [
+                'combo_item_id'      => (int) $item['id'],
+                'sku'                => $item['sku'],
+                'product_name'       => $item['product_name'],
+                'product_item_id'    => $product_id,
+                'custom_product_ref' => $item['custom_product_ref'],
+                'quantity_per_unit'  => (float) $item['quantity_per_unit'],
+                'required_quantity'  => $required_qty,
+                'available_stock'    => $available,
+                'is_sufficient'      => $is_sufficient,
+            ];
+        }
+
+        return [
+            'combo_id'       => (int) $combo_id,
+            'order_quantity' => (float) $order_quantity,
+            'is_fulfillable' => $is_fulfillable && count($components) > 0,
+            'components'     => $components,
+        ];
+    }
 }

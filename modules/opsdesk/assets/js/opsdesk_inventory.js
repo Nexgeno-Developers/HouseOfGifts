@@ -478,29 +478,36 @@
       var allSufficient = false;
       allItems.each(function () {
         var $row = $(this);
-
-        // Check if any status label is danger (insufficient)
+        console.log(allSufficient, $row.find("td:eq(0)").html());
         if ($row.find("td:eq(4) .label-danger").length > 0) {
-          alert("Inventory insufficient for one or more items. Please adjust the quantities.");
+          alert(
+            "Inventory insufficient for one or more items. Please adjust the quantities.",
+          );
           return (allSufficient = false);
         } else {
           if (
-            parseInt($row.find("td:eq(4)").text(), 10) >=
-            $row.find("td:eq(4) input").val() * need
+            parseInt($row.find("td:eq(2)").text(), 10) >=
+            $row.find("td:eq(3) input").val() * need
           ) {
             allSufficient = true;
           } else {
-            alert("Inventory insufficient for one or more items. Please adjust the quantities.");
+            alert(
+              "Inventory insufficient for one or more items. Please adjust the quantities.",
+            );
             return (allSufficient = false);
           }
         }
       });
-      alert("Inventory is sufficient for all items. You can proceed with the order.");
+      if (allSufficient) {
+        alert(
+          "Inventory is sufficient for all items. You can proceed with the order.",
+        );
+      }
     }
-    $("#opsdesk_check_btn").on(
-      "click",
-      newCombo ? fetchAvailability : newAvailability,
-    );
+    $("#opsdesk_check_btn").on("click", function () {
+      if (newCombo) newAvailability();
+      else fetchAvailability();
+    });
 
     $("#opsdesk_seed_stock_btn").on("click", function () {
       if (
@@ -552,7 +559,29 @@
       debouncedFetch();
     });
 
-    // $("#opsdesk_order_quantity").on("input change", debouncedFetch);
+    $("#opsdesk_order_quantity").on("input change", function () {
+      var need = parseFloat($(this).val()) || 0; //Qty of combos needed
+      var allItems = $("#opsdesk_availability_body tr:not(#opsdesk_empty_row)");
+
+      allItems.each(function () {
+        var $row = $(this);
+        var $input = $row.find("td:eq(3) input");
+        var qtyPerUnit = parseFloat($input.data("qty-per-unit")) || 1;
+        var newRequired = qtyPerUnit * need;
+
+        $input.val(newRequired);
+
+        var availableStock =
+          parseFloat($row.find("td:eq(2)").text().replace(/,/g, "")) || 0;
+        updateItemStatus(
+          $row.data("combo-item-id"),
+          newRequired,
+          availableStock,
+        );
+      });
+
+      updateFulfillableSummary();
+    });
 
     $("#opsdesk_add_item_btn").on("click", function () {
       newCombo = true;

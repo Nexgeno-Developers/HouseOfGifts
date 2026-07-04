@@ -263,3 +263,181 @@ function opsdesk_get_warehouse_stock_total($commodity_id)
 
     return $map[(int) $commodity_id] ?? 0.0;
 }
+
+/**
+ * Deduct stock from warehouse inventory_manage rows (FIFO by id).
+ *
+ * @param int   $commodity_id
+ * @param float $quantity
+ * @return bool
+ */
+function opsdesk_deduct_warehouse_stock($commodity_id, $quantity)
+{
+    if (!opsdesk_is_warehouse_module_active() || $quantity <= 0 || !is_numeric($commodity_id)) {
+        return false;
+    }
+
+    $CI = &get_instance();
+
+    if (!$CI->db->table_exists(db_prefix() . 'inventory_manage')) {
+        return false;
+    }
+
+    $remaining = (float) $quantity;
+
+    $CI->db->select('id, inventory_number');
+    $CI->db->from(db_prefix() . 'inventory_manage');
+    $CI->db->where('commodity_id', (int) $commodity_id);
+    $CI->db->order_by('id', 'ASC');
+    $rows = $CI->db->get()->result_array();
+
+    foreach ($rows as $row) {
+        if ($remaining <= 0) {
+            break;
+        }
+
+        $current = (float) $row['inventory_number'];
+        if ($current <= 0) {
+            continue;
+        }
+
+        $deduct = min($current, $remaining);
+        $new_qty = $current - $deduct;
+
+        $CI->db->where('id', (int) $row['id']);
+        $CI->db->update(db_prefix() . 'inventory_manage', [
+            'inventory_number' => $new_qty,
+        ]);
+
+        $remaining -= $deduct;
+    }
+
+    return $remaining <= 0;
+}
+
+/**
+ * Valid packing type keys.
+ *
+ * @return array
+ */
+function opsdesk_get_packing_types()
+{
+    return [
+        'box'             => _l('opsdesk_packing_box'),
+        'separate'        => _l('opsdesk_packing_separate'),
+        'print_then_pack' => _l('opsdesk_packing_print_then_pack'),
+        'print_then_ship' => _l('opsdesk_packing_print_then_ship'),
+    ];
+}
+
+/**
+ * Human label for packing type.
+ *
+ * @param string $type
+ * @return string
+ */
+function opsdesk_get_packing_type_label($type)
+{
+    $types = opsdesk_get_packing_types();
+
+    return $types[$type] ?? $type;
+}
+
+/**
+ * CSS label class for order status badge.
+ *
+ * @param string $status
+ * @return string
+ */
+function opsdesk_get_order_status_class($status)
+{
+    $map = [
+        'pending'     => 'label-warning',
+        'in_progress' => 'label-info',
+        'packed'      => 'label-primary',
+        'shipped'     => 'label-default',
+        'completed'   => 'label-success',
+        'cancelled'   => 'label-danger',
+    ];
+
+    return $map[$status] ?? 'label-default';
+}
+
+/**
+ * Human label for order status.
+ *
+ * @param string $status
+ * @return string
+ */
+function opsdesk_get_order_status_label($status)
+{
+    $key = 'opsdesk_order_status_' . $status;
+
+    return _l($key);
+}
+
+/**
+ * Whether staff can view orders globally.
+ *
+ * @return bool
+ */
+function opsdesk_can_view_all_orders()
+{
+    return staff_can('view', 'opsdesk_orders')
+        || has_permission('opsdesk_orders', '', 'view')
+        || is_admin();
+}
+
+/**
+ * Whether staff can view any orders (own or global).
+ *
+ * @return bool
+ */
+function opsdesk_can_view_orders()
+{
+    return opsdesk_can_view_all_orders()
+        || staff_can('view_own', 'opsdesk_orders')
+        || has_permission('opsdesk_orders', '', 'view_own');
+}
+
+/**
+ * Whether staff can create orders.
+ *
+ * @return bool
+ */
+function opsdesk_can_create_orders()
+{
+    return staff_can('create', 'opsdesk_orders')
+        || has_permission('opsdesk_orders', '', 'create')
+        || is_admin();
+}
+
+/**
+ * Whether staff can edit orders (status updates).
+ *
+ * @return bool
+ */
+function opsdesk_can_edit_orders()
+{
+    return staff_can('edit', 'opsdesk_orders')
+        || has_permission('opsdesk_orders', '', 'edit')
+        || is_admin();
+}
+
+/**
+ * Next allowed order statuses for UI.
+ *
+ * @param string $status
+ * @return array
+ */
+function opsdesk_get_next_order_statuses($status)
+{
+    $map = [
+        'pending'     => ['in_progress', 'cancelled'],
+        'in_progress' => ['packed', 'cancelled'],
+        'packed'      => ['shipped', 'cancelled'],
+        'shipped'     => ['completed'],
+    ];
+
+    return $map[$status] ?? [];
+}

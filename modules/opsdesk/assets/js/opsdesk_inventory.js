@@ -209,6 +209,9 @@
     $("#opsdesk_product_selector").val("").selectpicker("refresh");
 
     updateFulfillableSummary();
+    if ($("#opsdesk_create_order_btn").length) {
+      $("#opsdesk_create_order_btn").attr("href", buildCreateOrderUrl());
+    }
   }
 
   function updateFulfillableSummary() {
@@ -251,6 +254,70 @@
       }
     } else {
       summaryContainer.addClass("hide");
+    }
+
+    updateCreateOrderButton(allSufficient && itemCount > 0);
+  }
+
+  function collectOrderOverrides() {
+    var overrides = {
+      substitutions: {},
+      removed: [],
+      added: [],
+      quantities: {},
+    };
+
+    if (editedItems !== null) {
+      $.each(editedItems, function (itemId, data) {
+        if (data.removed) {
+          overrides.removed.push(String(itemId));
+        } else if (data.quantity_needed !== undefined) {
+          overrides.quantities[String(itemId)] = parseFloat(data.quantity_needed);
+        }
+      });
+    }
+
+    if (addedItems !== null) {
+      $.each(addedItems, function (itemId, data) {
+        overrides.added.push({
+          product_item_id: data.product_item_id,
+          sku: data.sku,
+          product_name: data.product_name,
+          quantity_per_unit: data.quantity_per_unit,
+          required_quantity: data.required_quantity,
+        });
+      });
+    }
+
+    return overrides;
+  }
+
+  function buildCreateOrderUrl() {
+    var comboId = $("#opsdesk_combo_id").val();
+    var qty = parseInt($("#opsdesk_order_quantity").val(), 10) || 1;
+    var overrides = collectOrderOverrides();
+    var url =
+      opsdeskNewOrderUrl +
+      "?combo_id=" +
+      encodeURIComponent(comboId) +
+      "&quantity=" +
+      encodeURIComponent(qty) +
+      "&items=" +
+      encodeURIComponent(JSON.stringify(overrides));
+
+    return url;
+  }
+
+  function updateCreateOrderButton(show) {
+    if (typeof opsdeskCanCreateOrder === "undefined" || !opsdeskCanCreateOrder) {
+      return;
+    }
+
+    if (show) {
+      $("#opsdesk_create_order_wrap").removeClass("hide");
+      $("#opsdesk_create_order_btn").attr("href", buildCreateOrderUrl());
+    } else {
+      $("#opsdesk_create_order_wrap").addClass("hide");
     }
   }
 
@@ -303,6 +370,7 @@
         "</td></tr>",
     );
     $("#opsdesk_summary").addClass("hide");
+    updateCreateOrderButton(false);
   }
 
   function showError(msg) {
@@ -382,6 +450,7 @@
     }
     $("#opsdesk_summary").removeClass("hide");
 
+    updateCreateOrderButton(data.is_fulfillable);
     attachRowHandlers();
   }
 
@@ -399,6 +468,9 @@
         updateItemQuantity(itemId, newQty);
         updateItemStatus(itemId, newQty, availableStock);
         updateFulfillableSummary();
+        if ($("#opsdesk_create_order_btn").length) {
+          $("#opsdesk_create_order_btn").attr("href", buildCreateOrderUrl());
+        }
       });
 
     $(".opsdesk-remove-item")
@@ -449,6 +521,9 @@
     $('tr[data-combo-item-id="' + itemId + '"]').fadeOut(300, function () {
       $(this).remove();
       updateFulfillableSummary();
+      if ($("#opsdesk_create_order_btn").length) {
+        $("#opsdesk_create_order_btn").attr("href", buildCreateOrderUrl());
+      }
     });
   }
 

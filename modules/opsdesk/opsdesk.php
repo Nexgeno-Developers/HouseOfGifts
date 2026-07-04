@@ -4,9 +4,9 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
 Module Name: OpsDesk
-Description: Operations desk — combo product definitions and real-time inventory availability viewer.
+Description: Operations desk — combo products, inventory viewer, and work order management.
 Author: OpsDesk
-Version: 1.0.1
+Version: 1.0.2
 Requires at least: 2.3.*
 */
 
@@ -18,6 +18,7 @@ $CI->load->helper(OPSDESK_MODULE_NAME . '/opsdesk');
 
 hooks()->add_action('admin_init', 'opsdesk_init_menu_items');
 hooks()->add_action('admin_init', 'opsdesk_permissions');
+hooks()->add_action('admin_init', 'opsdesk_orders_permissions');
 
 register_activation_hook(OPSDESK_MODULE_NAME, 'opsdesk_activation_hook');
 register_uninstall_hook(OPSDESK_MODULE_NAME, 'opsdesk_uninstall_hook');
@@ -74,6 +75,24 @@ function opsdesk_init_menu_items()
             'position' => 2,
         ]);
     }
+
+    if (opsdesk_can_view_orders()) {
+        $CI->app_menu->add_sidebar_children_item('opsdesk', [
+            'slug'     => 'opsdesk-orders',
+            'name'     => _l('opsdesk_orders'),
+            'href'     => admin_url('opsdesk/orders'),
+            'position' => 3,
+        ]);
+    }
+
+    if (opsdesk_can_create_orders()) {
+        $CI->app_menu->add_sidebar_children_item('opsdesk', [
+            'slug'     => 'opsdesk-new-order',
+            'name'     => _l('opsdesk_new_order'),
+            'href'     => admin_url('opsdesk/order'),
+            'position' => 4,
+        ]);
+    }
 }
 
 /**
@@ -91,4 +110,22 @@ function opsdesk_permissions()
     ];
 
     register_staff_capabilities('opsdesk', $capabilities, _l('opsdesk'));
+}
+
+/**
+ * Register staff capabilities for OpsDesk orders.
+ */
+function opsdesk_orders_permissions()
+{
+    $capabilities = [
+        'capabilities' => [
+            'view_own' => _l('permission_view_own'),
+            'view'     => _l('permission_view') . ' (' . _l('permission_global') . ')',
+            'create'   => _l('permission_create'),
+            'edit'     => _l('permission_edit'),
+            'delete'   => _l('permission_delete'),
+        ],
+    ];
+
+    register_staff_capabilities('opsdesk_orders', $capabilities, _l('opsdesk') . ' - ' . _l('opsdesk_orders'));
 }

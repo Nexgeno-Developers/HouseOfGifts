@@ -57,6 +57,14 @@ function render_input($name, $label = '', $value = '', $type = 'text', $input_at
     $input            = '';
     $_form_group_attr = '';
     $_input_attrs     = '';
+
+    if (isset($input_attrs['id'])) {
+        $input_id = $input_attrs['id'];
+        unset($input_attrs['id']);
+    } else {
+        $input_id = $name;
+    }
+
     foreach ($input_attrs as $key => $val) {
         // tooltips
         if ($key == 'title') {
@@ -87,9 +95,9 @@ function render_input($name, $label = '', $value = '', $type = 'text', $input_at
     }
     $input .= '<div class="form-group' . $form_group_class . '" ' . $_form_group_attr . '>';
     if ($label != '') {
-        $input .= '<label for="' . $name . '" class="control-label">' . _l($label, '', false) . '</label>';
+        $input .= '<label for="' . $input_id . '" class="control-label">' . _l($label, '', false) . '</label>';
     }
-    $input .= '<input type="' . $type . '" id="' . $name . '" name="' . $name . '" class="form-control' . $input_class . '" ' . $_input_attrs . ' value="' . set_value($name, $value) . '">';
+    $input .= '<input type="' . $type . '" id="' . $input_id . '" name="' . $name . '" class="form-control' . $input_class . '" ' . $_input_attrs . ' value="' . set_value($name, $value) . '">';
     $input .= '</div>';
 
     return $input;

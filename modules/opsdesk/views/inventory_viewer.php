@@ -115,6 +115,14 @@
                         <div id="opsdesk_summary" class="hide mtop15">
                             <span class="label" id="opsdesk_summary_label"></span>
                         </div>
+
+                        <?php if (opsdesk_can_create_orders()) { ?>
+                        <div id="opsdesk_create_order_wrap" class="hide mtop15">
+                            <a href="#" id="opsdesk_create_order_btn" class="btn btn-success">
+                                <i class="fa fa-shopping-cart"></i> <?php echo _l('opsdesk_create_order'); ?>
+                            </a>
+                        </div>
+                        <?php } ?>
                     </div>
                 </div>
             </div>
@@ -124,6 +132,8 @@
 <?php init_tail(); ?>
 <script>
     var opsdeskAjaxUrl = '<?php echo admin_url('opsdesk/ajax_availability'); ?>';
+    var opsdeskNewOrderUrl = '<?php echo admin_url('opsdesk/order'); ?>';
+    var opsdeskCanCreateOrder = <?php echo opsdesk_can_create_orders() ? 'true' : 'false'; ?>;
     var opsdeskLang = {
         sufficient: '<?php echo _l('opsdesk_sufficient'); ?>',
         insufficient: '<?php echo _l('opsdesk_insufficient'); ?>',

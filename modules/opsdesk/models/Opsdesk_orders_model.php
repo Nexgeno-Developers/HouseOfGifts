@@ -9,14 +9,6 @@ class Opsdesk_orders_model extends App_Model
     private $table_log;
     private $table_inventory;
 
-    /** @var array<string, array<string>> */
-    private $valid_transitions = [
-        'pending'     => ['in_progress', 'cancelled'],
-        'in_progress' => ['packed', 'cancelled'],
-        'packed'      => ['shipped', 'cancelled'],
-        'shipped'     => ['completed'],
-    ];
-
     public function __construct()
     {
         parent::__construct();
@@ -77,6 +69,37 @@ class Opsdesk_orders_model extends App_Model
         $this->db->order_by($this->table_orders . '.created_at', 'DESC');
 
         return $this->db->get($this->table_orders)->result_array();
+    }
+
+    /**
+     * Count orders grouped by status (respecting the same own_only/staff_id
+     * scope used by get()).
+     *
+     * @param array $options
+     * @return array status_key => count
+     */
+    public function count_by_status($options = [])
+    {
+        $staff_id = isset($options['staff_id']) ? (int) $options['staff_id'] : null;
+        $own_only = !empty($options['own_only']);
+
+        $this->db->select($this->table_orders . '.status, COUNT(*) as total');
+        $this->apply_list_joins();
+
+        if ($own_only && $staff_id) {
+            $this->db->where($this->table_orders . '.created_by', $staff_id);
+        }
+
+        $this->db->group_by($this->table_orders . '.status');
+
+        $rows = $this->db->get($this->table_orders)->result_array();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[$row['status']] = (int) $row['total'];
+        }
+
+        return $counts;
     }
 
     /**
@@ -466,6 +489,14 @@ class Opsdesk_orders_model extends App_Model
                 $update['packing_type'] = $extra['packing_type'];
             }
 
+            if (!empty($extra['packed_by'])) {
+                $update['packed_by'] = (int) $extra['packed_by'];
+            }
+
+            if (!empty($extra['count_by'])) {
+                $update['count_by'] = (int) $extra['count_by'];
+            }
+
             $this->db->where('id', (int) $order_id);
             $this->db->update($this->table_orders, $update);
 
@@ -556,17 +587,27 @@ class Opsdesk_orders_model extends App_Model
      */
     public function is_valid_transition($from, $to)
     {
-        if ($from === null) {
-            return $to === 'pending';
-        }
-
-        $configured = opsdesk_get_order_status_option_keys(true);
-        if (in_array($to, $configured, true) || $to === 'cancelled') {
+        if ($from === $to) {
             return true;
         }
 
-        return isset($this->valid_transitions[$from])
-            && in_array($to, $this->valid_transitions[$from], true);
+        // Cancellation is always allowed from any non-cancelled status.
+        if ($to === 'cancelled') {
+            return true;
+        }
+
+        $statuses = opsdesk_get_order_statuses(true);
+        $keys = array_column($statuses, 'status_key');
+
+        $fromIdx = array_search($from, $keys, true);
+        $toIdx   = array_search($to, $keys, true);
+
+        if ($fromIdx === false || $toIdx === false) {
+            return false;
+        }
+
+        // Forward-only progression by configured display order.
+        return $toIdx > $fromIdx;
     }
 
     /**
@@ -584,7 +625,7 @@ class Opsdesk_orders_model extends App_Model
             return array_values(array_slice($configured, $index + 1));
         }
 
-        return $this->valid_transitions[$current] ?? [];
+        return [];
     }
 
     /**

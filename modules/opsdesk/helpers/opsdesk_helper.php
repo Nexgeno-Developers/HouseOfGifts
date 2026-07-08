@@ -346,9 +346,9 @@ function opsdesk_get_packing_type_label($type)
 function opsdesk_get_order_statuses($active_only = true)
 {
     $CI = &get_instance();
-    $CI->load->model('warehouse/warehouse_model');
+    $CI->load->model('opsdesk/opsdesk_product_statuses_model');
 
-    $rows = $CI->warehouse_model->get_product_statuses();
+    $rows = $CI->opsdesk_product_statuses_model->get();
     $statuses = [];
 
     if (!empty($rows)) {
@@ -532,4 +532,153 @@ function opsdesk_get_default_next_status($status)
     $next = opsdesk_get_next_order_statuses($status);
 
     return $next[0] ?? '';
+}
+
+/**
+ * Whether the current staff member may manage OpsDesk settings
+ * (product/order statuses, etc.).
+ *
+ * @return bool
+ */
+function opsdesk_can_manage_settings()
+{
+    return staff_can('create', 'opsdesk')
+        || staff_can('edit', 'opsdesk')
+        || has_permission('opsdesk', '', 'create')
+        || has_permission('opsdesk', '', 'edit')
+        || is_admin();
+}
+
+/**
+ * Absolute filesystem path for OpsDesk uploads.
+ *
+ * @return string
+ */
+function opsdesk_upload_path()
+{
+    return FCPATH . 'uploads/opsdesk/';
+}
+
+/**
+ * Public URL for an OpsDesk stored file (value stored in DB).
+ *
+ * @param string $stored
+ * @return string
+ */
+function opsdesk_file_url($stored)
+{
+    if (empty($stored)) {
+        return '';
+    }
+
+    return base_url('uploads/opsdesk/' . $stored);
+}
+
+/**
+ * Allowed upload extensions (PDF, images, common office docs).
+ *
+ * @return array
+ */
+function opsdesk_allowed_upload_types()
+{
+    return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv'];
+}
+
+/**
+ * Handle a single file upload to the OpsDesk upload directory.
+ *
+ * @param string $field
+ * @return array{success:bool,file?:string,message?:string}
+ */
+function opsdesk_handle_upload($field)
+{
+    $CI = &get_instance();
+
+    if (!isset($_FILES[$field]) || empty($_FILES[$field]['name'])) {
+        return ['success' => false, 'message' => _l('opsdesk_upload_failed')];
+    }
+
+    $path = opsdesk_upload_path();
+    if (!is_dir($path)) {
+        mkdir($path, 0755, true);
+    }
+
+    $config = [
+        'upload_path'   => $path,
+        'allowed_types' => implode('|', opsdesk_allowed_upload_types()),
+        'max_size'      => file_upload_max_size() / 1024,
+        'encrypt_name'  => true,
+    ];
+
+    $CI->load->library('upload');
+    $CI->upload->initialize($config);
+
+    if (!$CI->upload->do_upload($field)) {
+        return ['success' => false, 'message' => $CI->upload->display_errors('', '')];
+    }
+
+    $data = $CI->upload->data();
+
+    return ['success' => true, 'file' => $data['file_name']];
+}
+
+/**
+ * Search CRM clients for the customer picker.
+ *
+ * @param string $q
+ * @param int    $limit
+ * @return array
+ */
+function opsdesk_search_clients($q = '', $limit = 50)
+{
+    $CI = &get_instance();
+
+    $CI->db->select(db_prefix() . 'clients.userid as id, ' . db_prefix() . 'clients.company, ' . db_prefix() . 'clients.city, ' . db_prefix() . 'clients.phonenumber');
+    $CI->db->from(db_prefix() . 'clients');
+
+    if ($q !== '') {
+        $q = $CI->db->escape_like_str($q);
+        $CI->db->group_start();
+        $CI->db->like(db_prefix() . 'clients.company', $q);
+        $CI->db->or_like(db_prefix() . 'clients.city', $q);
+        $CI->db->or_like(db_prefix() . 'clients.phonenumber', $q);
+        $CI->db->group_end();
+    }
+
+    $CI->db->order_by(db_prefix() . 'clients.company', 'ASC');
+    $CI->db->limit((int) $limit);
+
+    return $CI->db->get()->result_array();
+}
+
+/**
+ * Active staff members for assignment dropdowns.
+ *
+ * @return array
+ */
+function opsdesk_get_staff_members()
+{
+    $CI = &get_instance();
+
+    $CI->db->select('staffid, CONCAT(firstname, " ", lastname) as full_name', false);
+    $CI->db->from(db_prefix() . 'staff');
+    $CI->db->where(db_prefix() . 'staff.active', 1);
+    $CI->db->order_by('full_name', 'ASC');
+
+    return $CI->db->get()->result_array();
+}
+
+/**
+ * Full name of an assigned staff member.
+ *
+ * @param int|null $staff_id
+ * @return string
+ */
+function opsdesk_get_assigned_name($staff_id)
+{
+    if (empty($staff_id)) {
+        return '';
+    }
+
+    return get_staff_full_name((int) $staff_id);
 }

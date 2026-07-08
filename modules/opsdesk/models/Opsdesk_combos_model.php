@@ -332,11 +332,17 @@ class Opsdesk_combos_model extends App_Model
      */
     private function prepare_combo_payload($data)
     {
-        return [
+        $payload = [
             'name'        => trim($data['name'] ?? ''),
             'description' => trim($data['description'] ?? ''),
             'status'      => isset($data['status']) && (int) $data['status'] === 1 ? 1 : 0,
         ];
+
+        if (array_key_exists('image', $data)) {
+            $payload['image'] = !empty($data['image']) ? trim($data['image']) : null;
+        }
+
+        return $payload;
     }
 
     /**

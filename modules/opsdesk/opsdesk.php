@@ -6,7 +6,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 Module Name: OpsDesk
 Description: Operations desk — combo products, inventory viewer, and work order management.
 Author: OpsDesk
-Version: 1.0.2
+Version: 1.0.4
 Requires at least: 2.3.*
 */
 
@@ -91,6 +91,15 @@ function opsdesk_init_menu_items()
             'name'     => _l('opsdesk_new_order'),
             'href'     => admin_url('opsdesk/order'),
             'position' => 4,
+        ]);
+    }
+
+    if (staff_can('view', 'opsdesk') || has_permission('opsdesk', '', 'view') || is_admin()) {
+        $CI->app_menu->add_sidebar_children_item('opsdesk', [
+            'slug'     => 'opsdesk-settings',
+            'name'     => _l('opsdesk_settings'),
+            'href'     => admin_url('opsdesk/settings'),
+            'position' => 5,
         ]);
     }
 }

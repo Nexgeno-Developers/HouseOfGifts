@@ -1,5 +1,6 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
+<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">
@@ -9,7 +10,7 @@
                 </h4>
                 <div class="panel_s">
                     <div class="panel-body">
-                        <?php echo form_open(admin_url('opsdesk/save_order'), ['id' => 'opsdesk_order_form']); ?>
+                        <?php echo form_open_multipart(admin_url('opsdesk/save_order'), ['id' => 'opsdesk_order_form']); ?>
                         <input type="hidden" name="order_overrides" id="opsdesk_order_overrides" value="">
 
                         <div class="row">
@@ -56,6 +57,54 @@
                         <div class="row">
                             <div class="col-md-8">
                                 <?php echo render_textarea('notes', 'opsdesk_notes', '', ['rows' => 3, 'id' => 'opsdesk_order_notes']); ?>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="form-group select-placeholder">
+                                    <label for="opsdesk_customer_id" class="control-label">
+                                        <?php echo _l('opsdesk_customer'); ?>
+                                    </label>
+                                    <select name="customer_id" id="opsdesk_customer_id"
+                                        class="selectpicker" data-width="100%" data-live-search="true"
+                                        data-none-selected-text="<?php echo _l('opsdesk_search_customer'); ?>">
+                                        <option value=""></option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="opsdesk_customer_city" class="control-label">
+                                        <?php echo _l('opsdesk_customer_city'); ?>
+                                    </label>
+                                    <input type="text" name="customer_city" id="opsdesk_customer_city"
+                                        class="form-control" readonly
+                                        value="<?php echo e($prefill['customer_city'] ?? ''); ?>">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="opsdesk_bill_file" class="control-label">
+                                        <?php echo _l('opsdesk_bill_upload'); ?> <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="file" name="bill_file" id="opsdesk_bill_file"
+                                        class="form-control" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx,.txt,.csv">
+                                    <p class="text-muted mtop5"><small><?php echo _l('opsdesk_bill_required'); ?></small></p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="opsdesk_payment_file" class="control-label">
+                                        <?php echo _l('opsdesk_payment_upload'); ?>
+                                    </label>
+                                    <input type="file" name="payment_file" id="opsdesk_payment_file"
+                                        class="form-control" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx,.txt,.csv">
+                                    <p class="text-muted mtop5"><small><?php echo _l('opsdesk_payment_optional'); ?></small></p>
+                                </div>
                             </div>
                         </div>
 
@@ -139,6 +188,7 @@
 <script>
     var opsdeskOrderStockUrl = '<?php echo admin_url('opsdesk/ajax_order_stock_check'); ?>';
     var opsdeskProductDetailsUrl = '<?php echo admin_url('opsdesk/ajax_availability'); ?>';
+    var opsdeskClientsUrl = '<?php echo admin_url('opsdesk/clients'); ?>';
     var opsdeskOrderPrefill = <?php echo json_encode($prefill); ?>;
     var opsdeskOrderLang = {
         sufficient: '<?php echo _l('opsdesk_sufficient'); ?>',
@@ -148,6 +198,8 @@
         substitution: '<?php echo _l('opsdesk_substitution'); ?>',
         substitute: '<?php echo _l('opsdesk_substitute'); ?>',
         error: '<?php echo _l('opsdesk_error_loading'); ?>',
+        billRequired: '<?php echo _l('opsdesk_bill_required'); ?>',
+        noCustomerMatch: '<?php echo _l('opsdesk_no_customer_match'); ?>',
     };
 </script>
 

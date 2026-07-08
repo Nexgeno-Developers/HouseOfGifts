@@ -1,0 +1,97 @@
+/* OpsDesk — shared styles (customer picker + mobile-friendly operations views) */
+
+.opsdesk-customer-results {
+    position: absolute;
+    z-index: 1050;
+    width: 100%;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d2d6de;
+    border-radius: 3px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    margin-top: 2px;
+}
+
+.opsdesk-customer-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.opsdesk-customer-item:last-child {
+    border-bottom: none;
+}
+
+.opsdesk-customer-item:hover {
+    background: #f4f6f9;
+}
+
+.opsdesk-file-link {
+    display: inline-block;
+    margin-top: 4px;
+}
+
+/* Attachment previews on order detail */
+.opsdesk-attachments .label {
+    font-weight: 600;
+}
+
+/* ---- Mobile-friendly Operations view ---- */
+@media (max-width: 767px) {
+    #opsdesk_order_components,
+    #opsdesk_availability_table,
+    .table.opsdesk-orders-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .opsdesk-order-actions .btn,
+    .opsdesk-order-actions form,
+    .opsdesk-order-actions .btn-group {
+        width: 100%;
+        margin-bottom: 6px;
+    }
+
+    .opsdesk-order-actions .btn-group .btn,
+    .opsdesk-order-actions .btn-group {
+        display: block;
+        width: 100%;
+    }
+
+    .opsdesk-order-actions .dropdown-menu {
+        width: 100%;
+    }
+
+    .opsdesk-assignment-row .col-md-6,
+    .opsdesk-assignment-row .col-md-4,
+    .opsdesk-assignment-row .col-md-3 {
+        margin-bottom: 10px;
+    }
+
+    table.table td,
+    table.table th {
+        white-space: nowrap;
+    }
+
+    .opsdesk-stack-actions .btn {
+        display: block;
+        width: 100%;
+        margin-bottom: 8px;
+    }
+}
+
+/* Make action groups stack nicely and be tappable on touch */
+.opsdesk-order-actions .btn {
+    margin-bottom: 4px;
+}
+
+.opsdesk-stack-actions .btn,
+.opsdesk-stack-actions form {
+    margin-bottom: 8px;
+}

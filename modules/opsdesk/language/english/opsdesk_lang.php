@@ -104,3 +104,47 @@ $lang['opsdesk_total_reserved']         = 'Total Reserved';
 $lang['opsdesk_from_status']            = 'From';
 $lang['opsdesk_to_status']              = 'To';
 $lang['opsdesk_changed_by']             = 'Changed By';
+
+// Phase 4 — Settings (Product / Order Statuses)
+$lang['opsdesk_settings']                          = 'Settings';
+$lang['opsdesk_product_statuses']                 = 'Product Statuses';
+$lang['opsdesk_product_status']                   = 'Product Status';
+$lang['opsdesk_add_product_status']               = 'Add Product Status';
+$lang['opsdesk_edit_product_status']              = 'Edit Product Status';
+$lang['opsdesk_product_status_key']               = 'Status Key';
+$lang['opsdesk_product_status_name']              = 'Name';
+$lang['opsdesk_product_status_description']       = 'Description';
+$lang['opsdesk_product_status_display_order_in_use'] = 'Display order already in use.';
+$lang['opsdesk_product_status_key_in_use']        = 'Status key already in use.';
+$lang['opsdesk_display']                           = 'Display';
+$lang['opsdesk_not_display']                       = 'Not Display';
+$lang['opsdesk_display_order']                     = 'Display Order';
+$lang['opsdesk_problem_adding']                    = 'Problem adding product status.';
+$lang['opsdesk_problem_updating']                  = 'Problem updating product status.';
+$lang['opsdesk_problem_deleting']                  = 'Problem deleting product status.';
+
+// Phase 3 — Client Requests
+$lang['opsdesk_customer']               = 'Customer';
+$lang['opsdesk_customer_select']        = 'Select Customer';
+$lang['opsdesk_customer_city']          = 'Customer City';
+$lang['opsdesk_search_customer']        = 'Search customers...';
+$lang['opsdesk_no_customer_match']      = 'No customers found.';
+$lang['opsdesk_customer_not_found']     = 'Selected customer not found.';
+$lang['opsdesk_bill_upload']            = 'Customer Bill / Invoice';
+$lang['opsdesk_payment_upload']         = 'Payment Received';
+$lang['opsdesk_bill_required']          = 'Customer Bill / Invoice upload is required before submitting the order.';
+$lang['opsdesk_payment_optional']       = 'Payment Received upload is optional and can be added later.';
+$lang['opsdesk_file_uploaded']          = 'File uploaded';
+$lang['opsdesk_view_file']              = 'View File';
+$lang['opsdesk_download_file']          = 'Download';
+$lang['opsdesk_remove_file']            = 'Remove File';
+$lang['opsdesk_upload_failed']          = 'File upload failed. Please try again.';
+$lang['opsdesk_invalid_file_type']      = 'Unsupported file type. Allowed: PDF, JPG, JPEG, PNG and other common documents/images.';
+$lang['opsdesk_packed_by']              = 'Packed By / Assigned By';
+$lang['opsdesk_count_by']               = 'Count By';
+$lang['opsdesk_assignment']             = 'Staff Assignment';
+$lang['opsdesk_packed_by_required']     = 'Please assign a staff member (Packed By) before accepting the order.';
+$lang['opsdesk_count_by_required']      = 'Please assign a Count By staff member before marking the order as completed.';
+$lang['opsdesk_combo_image']            = 'Combo Image';
+$lang['opsdesk_combo_image_help']       = 'Upload an image to help Sales and Operations identify this combo.';
+$lang['opsdesk_no_image']               = 'No image';

@@ -1,5 +1,6 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
+<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">
@@ -7,7 +8,7 @@
                 <h4 class="tw-mt-0 tw-font-bold tw-text-lg tw-text-neutral-700">
                     <?php echo e($title); ?>
                 </h4>
-                <?php echo form_open($this->uri->uri_string()); ?>
+                        <?php echo form_open_multipart($this->uri->uri_string()); ?>
                 <div class="panel_s">
                     <div class="panel-body">
                         <?php
@@ -26,6 +27,18 @@
                                     <?php echo _l('opsdesk_inactive'); ?>
                                 </option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="combo_image" class="control-label"><?php echo _l('opsdesk_combo_image'); ?></label>
+                            <?php if (isset($combo) && !empty($combo->image)) { ?>
+                            <div class="mbot10">
+                                <img src="<?php echo e(opsdesk_file_url($combo->image)); ?>" alt=""
+                                    class="img-thumbnail" style="max-width:120px;max-height:120px;">
+                            </div>
+                            <?php } ?>
+                            <input type="file" name="combo_image" id="combo_image" class="form-control"
+                                accept=".jpg,.jpeg,.png,.gif,.bmp,.webp">
+                            <p class="text-muted mtop5"><small><?php echo _l('opsdesk_combo_image_help'); ?></small></p>
                         </div>
                         <?php if (staff_can('create', 'opsdesk') || staff_can('edit', 'opsdesk')
                             || has_permission('opsdesk', '', 'create') || has_permission('opsdesk', '', 'edit')) { ?>

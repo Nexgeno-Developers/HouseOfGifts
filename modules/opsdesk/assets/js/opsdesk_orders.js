@@ -292,6 +292,68 @@ console.log('opsdesk_orders.js file loaded');
     fetchStockCheck();
   }
 
+  function initCustomerSearch() {
+    var $select = $("#opsdesk_customer_id");
+    var $city = $("#opsdesk_customer_city");
+    var prefillId = (opsdeskOrderPrefill && opsdeskOrderPrefill.customer_id)
+      ? String(opsdeskOrderPrefill.customer_id)
+      : "";
+    var searchTimer = null;
+
+    function loadOptions(q) {
+      var post = { q: q || "" };
+      if (typeof csrfData !== "undefined" && csrfData.token_name) {
+        post[csrfData.token_name] = csrfData.hash;
+      }
+      $.post(opsdeskClientsUrl, post).done(function (resp) {
+        if (typeof resp === "string") {
+          try { resp = JSON.parse(resp); } catch (e) { return; }
+        }
+        if (!resp.success || !resp.clients) {
+          return;
+        }
+        var html = '<option value=""></option>';
+        $.each(resp.clients, function (i, c) {
+          var sel = (String(c.id) === prefillId) ? " selected" : "";
+          var city = c.city ? " — " + escapeHtml(c.city) : "";
+          html += '<option value="' + c.id + '" data-city="' + escapeHtml(c.city || "") + '"' + sel + ">" +
+            escapeHtml(c.company) + city + "</option>";
+        });
+        $select.html(html);
+        $select.selectpicker("refresh");
+        syncCityFromSelect();
+        var $s = $select.next(".bootstrap-select").find(".bs-searchbox input");
+        if ($s.length) {
+          $s.focus();
+        }
+      });
+    }
+
+    function syncCityFromSelect() {
+      var $opt = $select.find("option:selected");
+      $city.val($opt.data("city") || "");
+    }
+
+    // Initial population so the dropdown has data on first open
+    loadOptions("");
+
+    // Remote search while typing in the selectpicker live-search box
+    $select.on("shown.bs.select", function () {
+      var $search = $(this).next(".bootstrap-select").find(".bs-searchbox input");
+      $search.off("keyup.opsCust").on("keyup.opsCust", function () {
+        var q = $.trim($(this).val());
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function () {
+          loadOptions(q);
+        }, 350);
+      });
+    });
+
+    $select.on("changed.bs.select", function () {
+      syncCityFromSelect();
+    });
+  }
+
   $(function () {
     console.log('OpsDesk order form initializing...');
     console.log('opsdeskOrderStockUrl:', opsdeskOrderStockUrl);
@@ -343,8 +405,15 @@ console.log('opsdesk_orders.js file loaded');
       if ($("#opsdesk_submit_order").prop("disabled")) {
         return false;
       }
+      if (!$("#opsdesk_bill_file").val()) {
+        alert(opsdeskOrderLang.billRequired);
+        $("#opsdesk_bill_file").focus();
+        return false;
+      }
       return true;
     });
+
+    initCustomerSearch();
 
     console.log('OpsDesk order form initialization complete');
   });

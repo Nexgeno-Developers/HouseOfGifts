@@ -1,5 +1,6 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
+<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">
@@ -18,6 +19,7 @@
                             <thead>
                                 <tr>
                                     <th><?php echo _l('opsdesk_combo_name'); ?></th>
+                                    <th><?php echo _l('opsdesk_combo_image'); ?></th>
                                     <th><?php echo _l('opsdesk_description'); ?></th>
                                     <th><?php echo _l('opsdesk_status'); ?></th>
                                     <th><?php echo _l('options'); ?></th>
@@ -27,6 +29,14 @@
                                 <?php foreach ($combos as $combo) { ?>
                                 <tr>
                                     <td><?php echo e($combo['name']); ?></td>
+                                    <td>
+                                        <?php if (!empty($combo['image'])) { ?>
+                                        <img src="<?php echo e(opsdesk_file_url($combo['image'])); ?>" alt=""
+                                            class="img-thumbnail" style="max-width:48px;max-height:48px;">
+                                        <?php } else { ?>
+                                        <span class="text-muted">—</span>
+                                        <?php } ?>
+                                    </td>
                                     <td><?php echo e($combo['description']); ?></td>
                                     <td>
                                         <?php if ((int) $combo['status'] === 1) { ?>

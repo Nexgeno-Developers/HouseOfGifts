@@ -23,7 +23,7 @@
                                         <?php echo _l('opsdesk_status_all'); ?>
                                     </option>
                                     <?php
-                                    $statuses = ['pending', 'in_progress', 'packed', 'shipped', 'completed', 'cancelled'];
+                                    $statuses = opsdesk_get_order_status_option_keys(true);
                                     foreach ($statuses as $st) { ?>
                                     <option value="<?php echo e($st); ?>" <?php echo $status_filter === $st ? 'selected' : ''; ?>>
                                         <?php echo e(opsdesk_get_order_status_label($st)); ?>
@@ -65,8 +65,8 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="label <?php echo opsdesk_get_order_status_class($order['status']); ?>">
-                                                <?php echo e(opsdesk_get_order_status_label($order['status'])); ?>
+                                            <span class="label <?php echo opsdesk_get_order_status_class($order['status'] ?? ''); ?>">
+                                                <?php echo e(opsdesk_get_order_status_label($order['status'] ?? '') ?: '—'); ?>
                                             </span>
                                         </td>
                                         <?php if (!empty($global_view)) { ?>
@@ -96,22 +96,22 @@
                                             <?php } ?>
 
                                             <?php if (!empty($can_edit) && $order['status'] === 'pending') { ?>
+                                            <?php $accept_status = opsdesk_get_default_next_status($order['status']); ?>
+                                            <?php if ($accept_status !== '') { ?>
                                             <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'inline-block']); ?>
                                             <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
-                                            <input type="hidden" name="status" value="in_progress">
+                                            <input type="hidden" name="status" value="<?php echo e($accept_status); ?>">
                                             <button type="submit" class="btn btn-info btn-sm">
                                                 <?php echo _l('opsdesk_accept_order'); ?>
                                             </button>
                                             <?php echo form_close(); ?>
                                             <?php } ?>
+                                            <?php } ?>
 
                                             <?php
                                             if (!empty($can_edit)) {
-                                                $next = opsdesk_get_next_order_statuses($order['status']);
-                                                $progress = array_values(array_filter($next, function ($s) {
-                                                    return $s !== 'cancelled';
-                                                }));
-                                                if (count($progress) > 0) { ?>
+                                                $status_options = opsdesk_get_order_statuses(true);
+                                                if (!empty($status_options)) { ?>
                                             <div class="btn-group">
                                                 <button type="button" class="btn btn-default btn-sm dropdown-toggle"
                                                     data-toggle="dropdown">
@@ -119,7 +119,8 @@
                                                     <span class="caret"></span>
                                                 </button>
                                                 <ul class="dropdown-menu">
-                                                    <?php foreach ($progress as $st) { ?>
+                                                    <?php foreach ($status_options as $status) {
+                                                        $st = $status['status_key']; ?>
                                                     <li>
                                                         <?php echo form_open(admin_url('opsdesk/update_order_status')); ?>
                                                         <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">

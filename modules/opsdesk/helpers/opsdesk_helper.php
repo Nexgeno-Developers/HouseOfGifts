@@ -343,6 +343,64 @@ function opsdesk_get_packing_type_label($type)
     return $types[$type] ?? $type;
 }
 
+function opsdesk_get_order_statuses($active_only = true)
+{
+    $CI = &get_instance();
+    $CI->load->model('warehouse/warehouse_model');
+
+    $rows = $CI->warehouse_model->get_product_statuses();
+    $statuses = [];
+
+    if (!empty($rows)) {
+        foreach ($rows as $row) {
+            if ($active_only && empty($row['is_active'])) {
+                continue;
+            }
+
+            $status_key = trim((string) ($row['status_key'] ?? ''));
+            if ($status_key === '') {
+                continue;
+            }
+
+            $statuses[] = [
+                'status_key'    => $status_key,
+                'name'          => trim((string) ($row['name'] ?? '')),
+                'description'   => trim((string) ($row['description'] ?? '')),
+                'display_order' => (int) ($row['display_order'] ?? 0),
+            ];
+        }
+    }
+
+    if (empty($statuses)) {
+        $statuses = [
+            ['status_key' => 'pending', 'name' => _l('opsdesk_order_status_pending'), 'description' => '', 'display_order' => 1],
+            ['status_key' => 'in_progress', 'name' => _l('opsdesk_order_status_in_progress'), 'description' => '', 'display_order' => 2],
+            ['status_key' => 'packed', 'name' => _l('opsdesk_order_status_packed'), 'description' => '', 'display_order' => 3],
+            ['status_key' => 'shipped', 'name' => _l('opsdesk_order_status_shipped'), 'description' => '', 'display_order' => 4],
+            ['status_key' => 'completed', 'name' => _l('opsdesk_order_status_completed'), 'description' => '', 'display_order' => 5],
+            ['status_key' => 'cancelled', 'name' => _l('opsdesk_order_status_cancelled'), 'description' => '', 'display_order' => 6],
+        ];
+    }
+
+    return $statuses;
+}
+
+function opsdesk_get_order_status_option_keys($include_cancelled = false)
+{
+    $statuses = opsdesk_get_order_statuses(true);
+    $keys = [];
+
+    foreach ($statuses as $status) {
+        if (!$include_cancelled && ($status['status_key'] === 'cancelled')) {
+            continue;
+        }
+
+        $keys[] = $status['status_key'];
+    }
+
+    return $keys;
+}
+
 /**
  * CSS label class for order status badge.
  *
@@ -351,16 +409,25 @@ function opsdesk_get_packing_type_label($type)
  */
 function opsdesk_get_order_status_class($status)
 {
-    $map = [
-        'pending'     => 'label-warning',
-        'in_progress' => 'label-info',
-        'packed'      => 'label-primary',
-        'shipped'     => 'label-default',
-        'completed'   => 'label-success',
-        'cancelled'   => 'label-danger',
-    ];
+    $status_key = strtolower(trim((string) $status));
+    if ($status_key === '') {
+        return 'label-default';
+    }
 
-    return $map[$status] ?? 'label-default';
+    $statuses = opsdesk_get_order_statuses(true);
+    $palette = ['label-warning', 'label-info', 'label-primary', 'label-default', 'label-success', 'label-danger'];
+
+    foreach ($statuses as $item) {
+        if (strtolower((string) $item['status_key']) === $status_key) {
+            $display_order = isset($item['display_order']) && (int) $item['display_order'] > 0
+                ? (int) $item['display_order']
+                : 1;
+
+            return $palette[($display_order - 1) % count($palette)] ?? 'label-default';
+        }
+    }
+
+    return 'label-default';
 }
 
 /**
@@ -371,9 +438,20 @@ function opsdesk_get_order_status_class($status)
  */
 function opsdesk_get_order_status_label($status)
 {
-    $key = 'opsdesk_order_status_' . $status;
+    $status_key = trim((string) $status);
+    if ($status_key === '') {
+        return '';
+    }
 
-    return _l($key);
+    foreach (opsdesk_get_order_statuses(true) as $item) {
+        if (strtolower((string) $item['status_key']) === strtolower($status_key)) {
+            return $item['name'] !== '' ? $item['name'] : _l('opsdesk_order_status_' . $status_key);
+        }
+    }
+
+    $translated = _l('opsdesk_order_status_' . $status_key);
+
+    return $status_key;
 }
 
 /**
@@ -432,12 +510,26 @@ function opsdesk_can_edit_orders()
  */
 function opsdesk_get_next_order_statuses($status)
 {
-    $map = [
-        'pending'     => ['in_progress', 'cancelled'],
-        'in_progress' => ['packed', 'cancelled'],
-        'packed'      => ['shipped', 'cancelled'],
-        'shipped'     => ['completed'],
-    ];
+    $statuses = opsdesk_get_order_status_option_keys(false);
+    $index = array_search($status, $statuses, true);
 
-    return $map[$status] ?? [];
+    if ($index === false) {
+        $map = [
+            'pending'     => ['in_progress', 'cancelled'],
+            'in_progress' => ['packed', 'cancelled'],
+            'packed'      => ['shipped', 'cancelled'],
+            'shipped'     => ['completed'],
+        ];
+
+        return $map[$status] ?? [];
+    }
+
+    return array_values(array_slice($statuses, $index + 1));
+}
+
+function opsdesk_get_default_next_status($status)
+{
+    $next = opsdesk_get_next_order_statuses($status);
+
+    return $next[0] ?? '';
 }

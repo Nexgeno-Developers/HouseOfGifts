@@ -40,6 +40,7 @@ class warehouse extends AdminController {
 		}
 
 		$data['tab'][] = 'warehouse_custom_fields';
+		$data['tab'][] = 'product_statuses';
 		$data['tab'][] = 'inventory';
 		$data['tab'][] = 'inventory_setting';
 		$data['tab'][] = 'approval_setting';
@@ -102,6 +103,8 @@ class warehouse extends AdminController {
 			$this->db->where('fieldto', 'warehouse_name');
 			$data['wh_custom_fields'] = $this->db->get(db_prefix().'customfields')->result_array();
 
+		}elseif($data['group'] == 'product_statuses'){
+			$data['product_statuses'] = $this->warehouse_model->get_product_statuses();
 		}
 
 		if ($data['group'] == 'commodity_type') {
@@ -3211,6 +3214,70 @@ class warehouse extends AdminController {
 				redirect(admin_url('warehouse/setting?group=colors'));
 			}
 		}
+	}
+
+	/**
+	 * product status setting
+	 * @return redirect
+	 */
+	public function product_status_setting($id = '') {
+		if ($this->input->post()) {
+			$data = $this->input->post();
+			$data['is_active'] = isset($data['is_active']) ? 1 : 0;
+			$data['display_order'] = (int) ($data['display_order'] ?? 0);
+
+			if (!$this->input->post('id')) {
+				$mess = $this->warehouse_model->add_product_status($data);
+				if (is_numeric($mess) && (int) $mess > 0) {
+					set_alert('success', _l('added_successfully'));
+				} elseif ($mess === 'duplicate_order') {
+					set_alert('warning', _l('product_status_display_order_in_use'));
+				} elseif ($mess === 'duplicate_key') {
+					set_alert('warning', _l('product_status_key_in_use'));
+				} else {
+					set_alert('warning', _l('problem_adding'));
+				}
+				redirect(admin_url('warehouse/setting?group=product_statuses'));
+			}
+
+			$id = (int) $data['id'];
+			unset($data['id']);
+			$success = $this->warehouse_model->update_product_status($data, $id);
+			if ($success === true) {
+				set_alert('success', _l('updated_successfully'));
+			} elseif ($success === 'duplicate_order') {
+				set_alert('warning', _l('product_status_display_order_in_use'));
+			} elseif ($success === 'duplicate_key') {
+				set_alert('warning', _l('product_status_key_in_use'));
+			} else {
+				set_alert('warning', _l('problem_updating'));
+			}
+
+			redirect(admin_url('warehouse/setting?group=product_statuses'));
+		}
+	}
+
+	/**
+	 * delete product status
+	 * @param  integer $id
+	 * @return redirect
+	 */
+	public function delete_product_status($id) {
+		if (!$id) {
+			redirect(admin_url('warehouse/setting?group=product_statuses'));
+		}
+
+		if(!has_permission('wh_setting', '', 'delete') && !is_admin()) {
+			access_denied('warehouse');
+		}
+
+		$response = $this->warehouse_model->delete_product_status($id);
+		if ($response) {
+			set_alert('success', _l('deleted'));
+		} else {
+			set_alert('warning', _l('problem_deleting'));
+		}
+		redirect(admin_url('warehouse/setting?group=product_statuses'));
 	}
 
 	/**

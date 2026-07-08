@@ -560,6 +560,11 @@ class Opsdesk_orders_model extends App_Model
             return $to === 'pending';
         }
 
+        $configured = opsdesk_get_order_status_option_keys(true);
+        if (in_array($to, $configured, true) || $to === 'cancelled') {
+            return true;
+        }
+
         return isset($this->valid_transitions[$from])
             && in_array($to, $this->valid_transitions[$from], true);
     }
@@ -572,6 +577,13 @@ class Opsdesk_orders_model extends App_Model
      */
     public function get_next_statuses($current)
     {
+        $configured = opsdesk_get_order_status_option_keys(false);
+        $index = array_search($current, $configured, true);
+
+        if ($index !== false) {
+            return array_values(array_slice($configured, $index + 1));
+        }
+
         return $this->valid_transitions[$current] ?? [];
     }
 

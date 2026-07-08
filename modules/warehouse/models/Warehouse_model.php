@@ -10,6 +10,66 @@ class Warehouse_model extends App_Model {
 		parent::__construct();
 	}
 
+	private function ensure_product_status_table() {
+		$table = db_prefix() . 'wh_product_statuses';
+
+		try {
+			if ($this->db->table_exists($table)) {
+				return true;
+			}
+		} catch (Exception $e) {
+			// Ignore and create the table directly.
+		}
+
+		$this->db->query('CREATE TABLE IF NOT EXISTS `' . $table . '` (
+			`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+			`status_key` VARCHAR(100) NOT NULL,
+			`name` VARCHAR(255) NOT NULL,
+			`description` TEXT NULL,
+			`display_order` INT UNSIGNED NOT NULL DEFAULT 0,
+			`is_active` TINYINT(1) NOT NULL DEFAULT 1,
+			`created_at` DATETIME NULL,
+			`updated_at` DATETIME NULL,
+			PRIMARY KEY (`id`),
+			UNIQUE KEY `idx_wh_product_status_key` (`status_key`),
+			UNIQUE KEY `idx_wh_product_status_order` (`display_order`)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+
+		try {
+			$this->db->query('ALTER TABLE `' . $table . '` ADD UNIQUE INDEX `idx_wh_product_status_order` (`display_order`)');
+		} catch (Exception $e) {
+			// Ignore if the index already exists or the table contains duplicates.
+		}
+
+		$this->seed_default_product_statuses();
+
+		return true;
+	}
+
+	private function seed_default_product_statuses() {
+		$table = db_prefix() . 'wh_product_statuses';
+		if (!$this->db->table_exists($table)) {
+			return;
+		}
+
+		$this->db->from($table);
+		if ((int) $this->db->count_all_results() > 0) {
+			return;
+		}
+
+		$now = date('Y-m-d H:i:s');
+		$defaults = [
+			['status_key' => 'pending', 'name' => 'Pending', 'description' => 'Order is waiting for processing', 'display_order' => 1, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+			['status_key' => 'in_progress', 'name' => 'In Progress', 'description' => 'Order is being processed', 'display_order' => 2, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+			['status_key' => 'packed', 'name' => 'Packed', 'description' => 'Order has been packed', 'display_order' => 3, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+			['status_key' => 'shipped', 'name' => 'Shipped', 'description' => 'Order has been shipped', 'display_order' => 4, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+			['status_key' => 'completed', 'name' => 'Completed', 'description' => 'Order has been completed', 'display_order' => 5, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+			['status_key' => 'cancelled', 'name' => 'Cancelled', 'description' => 'Order was cancelled', 'display_order' => 6, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+		];
+
+		$this->db->insert_batch($table, $defaults);
+	}
+
 	/**
 	 * add commodity type
 	 * @param array  $data
@@ -6517,6 +6577,135 @@ class Warehouse_model extends App_Model {
 		}
 
 		return $deleted;
+	}
+
+	/**
+	 * get product statuses
+	 * @param boolean $id
+	 * @return array or object
+	 */
+	public function get_product_statuses($id = false) {
+		$this->ensure_product_status_table();
+		$table = db_prefix() . 'wh_product_statuses';
+
+		if (is_numeric($id)) {
+			$this->db->where('id', $id);
+			return $this->db->get($table)->row_array();
+		}
+
+		$this->db->order_by('display_order', 'ASC');
+		$this->db->order_by('id', 'ASC');
+
+		return $this->db->get($table)->result_array();
+	}
+
+	private function product_status_display_order_exists($display_order, $exclude_id = null) {
+		$this->db->select('id');
+		$this->db->from(db_prefix() . 'wh_product_statuses');
+		$this->db->where('display_order', (int) $display_order);
+		if ($exclude_id !== null) {
+			$this->db->where('id !=', (int) $exclude_id);
+		}
+
+		return (bool) $this->db->get()->row_array();
+	}
+
+	private function product_status_key_exists($status_key, $exclude_id = null) {
+		$this->db->select('id');
+		$this->db->from(db_prefix() . 'wh_product_statuses');
+		$this->db->where('status_key', trim((string) $status_key));
+		if ($exclude_id !== null) {
+			$this->db->where('id !=', (int) $exclude_id);
+		}
+
+		return (bool) $this->db->get()->row_array();
+	}
+
+	/**
+	 * add product status
+	 * @param array $data
+	 * @return int|string
+	 */
+	public function add_product_status($data) {
+		$this->ensure_product_status_table();
+		if (isset($data['id'])) {
+			unset($data['id']);
+		}
+
+		$data['display_order'] = (int) ($data['display_order'] ?? 0);
+		if ($this->product_status_display_order_exists($data['display_order'])) {
+			return 'duplicate_order';
+		}
+
+		$status_key = trim((string) ($data['status_key'] ?? ''));
+		if ($status_key === '' || $this->product_status_key_exists($status_key)) {
+			return 'duplicate_key';
+		}
+		$data['status_key'] = $status_key;
+
+		$data['is_active'] = !empty($data['is_active']) ? 1 : 0;
+		$data['created_at'] = date('Y-m-d H:i:s');
+		$data['updated_at'] = $data['created_at'];
+
+		$this->db->insert(db_prefix() . 'wh_product_statuses', $data);
+
+		return $this->db->insert_id();
+	}
+
+	/**
+	 * update product status
+	 * @param array $data
+	 * @param int $id
+	 * @return bool|string
+	 */
+	public function update_product_status($data, $id) {
+		$this->ensure_product_status_table();
+		$id = (int) $id;
+		if ($id <= 0) {
+			return false;
+		}
+
+		if (isset($data['id'])) {
+			$requested_id = (int) $data['id'];
+			if ($requested_id !== $id) {
+				return false;
+			}
+			unset($data['id']);
+		}
+
+		$data['display_order'] = (int) ($data['display_order'] ?? 0);
+		if ($this->product_status_display_order_exists($data['display_order'], $id)) {
+			return 'duplicate_order';
+		}
+
+		if (isset($data['status_key'])) {
+			$status_key = trim((string) $data['status_key']);
+			if ($status_key === '' || $this->product_status_key_exists($status_key, $id)) {
+				return 'duplicate_key';
+			}
+			$data['status_key'] = $status_key;
+		}
+
+		$data['is_active'] = !empty($data['is_active']) ? 1 : 0;
+		$data['updated_at'] = date('Y-m-d H:i:s');
+
+		$this->db->where('id', $id);
+		$this->db->update(db_prefix() . 'wh_product_statuses', $data);
+
+		return $this->db->affected_rows() >= 0;
+	}
+
+	/**
+	 * delete product status
+	 * @param int $id
+	 * @return bool
+	 */
+	public function delete_product_status($id) {
+		$this->ensure_product_status_table();
+		$this->db->where('id', $id);
+		$this->db->delete(db_prefix() . 'wh_product_statuses');
+
+		return $this->db->affected_rows() > 0;
 	}
 
 	/**

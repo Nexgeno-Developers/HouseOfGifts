@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
@@ -15,7 +15,7 @@ function opsdesk_is_warehouse_module_active()
 /**
  * Resolve the canonical SKU for a tblitems product row.
  *
- * Priority: commodity_code (warehouse) → sku_code → ITEM-{id}
+ * Priority: commodity_code (warehouse) â†’ sku_code â†’ ITEM-{id}
  *
  * @param array|object $item
  * @return string
@@ -65,7 +65,7 @@ function opsdesk_get_product_label($item)
     }
 
     if ($sku !== '' && $name !== '' && stripos($name, $sku) === false) {
-        return $sku . ' — ' . $name;
+        return $sku . ' â€” ' . $name;
     }
 
     if ($name !== '') {
@@ -97,7 +97,7 @@ function opsdesk_get_product_subtext($item)
         $parts[] = _l('opsdesk_stock') . ': ' . app_format_number($item['warehouse_stock']);
     }
 
-    return implode(' · ', $parts);
+    return implode(' Â· ', $parts);
 }
 
 /**
@@ -316,18 +316,49 @@ function opsdesk_deduct_warehouse_stock($commodity_id, $quantity)
 }
 
 /**
- * Valid packing type keys.
+ * Valid packing types as a key => label map.
  *
+ * Reads from the manageable opsdesk_packing_types table when it exists and
+ * has rows; otherwise falls back to the hardcoded defaults so the order
+ * form, validation and labels keep working before the migration runs.
+ *
+ * @param bool $active_only
  * @return array
  */
-function opsdesk_get_packing_types()
+function opsdesk_get_packing_types($active_only = false)
 {
-    return [
+    $CI = &get_instance();
+
+    $defaults = [
         'box'             => _l('opsdesk_packing_box'),
         'separate'        => _l('opsdesk_packing_separate'),
         'print_then_pack' => _l('opsdesk_packing_print_then_pack'),
         'print_then_ship' => _l('opsdesk_packing_print_then_ship'),
     ];
+
+    if (!isset($CI->db) || !$CI->db->table_exists(db_prefix() . 'opsdesk_packing_types')) {
+        return $defaults;
+    }
+
+    $CI->db->order_by('display_order', 'ASC');
+    $CI->db->order_by('id', 'ASC');
+
+    if ($active_only) {
+        $CI->db->where('is_active', 1);
+    }
+
+    $rows = $CI->db->get(db_prefix() . 'opsdesk_packing_types')->result_array();
+
+    if (empty($rows)) {
+        return $defaults;
+    }
+
+    $types = [];
+    foreach ($rows as $row) {
+        $types[trim((string) $row['type_key'])] = trim((string) $row['name']);
+    }
+
+    return $types;
 }
 
 /**
@@ -338,7 +369,7 @@ function opsdesk_get_packing_types()
  */
 function opsdesk_get_packing_type_label($type)
 {
-    $types = opsdesk_get_packing_types();
+    $types = opsdesk_get_packing_types(true);
 
     return $types[$type] ?? $type;
 }
@@ -646,7 +677,7 @@ function opsdesk_search_clients($q = '', $limit = 50)
     }
 
     $CI->db->order_by(db_prefix() . 'clients.company', 'ASC');
-    $CI->db->limit((int) $limit);
+    // $CI->db->limit((int) $limit);
 
     return $CI->db->get()->result_array();
 }
@@ -681,4 +712,217 @@ function opsdesk_get_assigned_name($staff_id)
     }
 
     return get_staff_full_name((int) $staff_id);
+}
+
+/**
+ * Human label for an order priority value.
+ *
+ * @param int $priority
+ * @return string
+ */
+function opsdesk_get_priority_label($priority)
+{
+    return (int) $priority === 1 ? _l('opsdesk_priority_high') : _l('opsdesk_priority_normal');
+}
+
+/**
+ * HTML badge for an order priority value (empty for Normal).
+ *
+ * @param int $priority
+ * @return string
+ */
+function opsdesk_get_priority_badge($priority)
+{
+    if ((int) $priority !== 1) {
+        return '';
+    }
+
+    return '<span class="label label-danger">' . e(_l('opsdesk_priority_high_badge')) . '</span>';
+}
+
+/**
+ * Staff members who should receive Operations notifications.
+ *
+ * Admins plus anyone with view permission on opsdesk_orders.
+ * `staff_model->get('', true)` returns arrays (`$s['staffid']`).
+ *
+ * @return array<int, array{staffid:int,firstname:string,lastname:string}>
+ */
+function opsdesk_get_operations_staff()
+{
+    $CI = &get_instance();
+
+    if (!isset($CI->staff_model)) {
+        $CI->load->model('staff_model');
+    }
+
+    $staff = $CI->staff_model->get('', true);
+    $ops   = [];
+
+    foreach ($staff as $s) {
+        if (!isset($s['staffid'])) {
+            continue;
+        }
+
+        if (is_admin($s['staffid']) || staff_can('view', 'opsdesk_orders', $s['staffid'])) {
+            $ops[] = [
+                'staffid'   => (int) $s['staffid'],
+                'firstname' => $s['firstname'] ?? '',
+                'lastname'  => $s['lastname'] ?? '',
+            ];
+        }
+    }
+
+    return $ops;
+}
+
+/**
+ * Notify Operations staff (and admins) about a newly placed order.
+ *
+ * @param int $order_id
+ * @param int $created_by
+ * @return void
+ */
+function opsdesk_notify_new_order($order_id, $created_by)
+{
+    $CI = &get_instance();
+
+    if (!isset($CI->opsdesk_orders_model)) {
+        $CI->load->model('opsdesk/opsdesk_orders_model');
+    }
+
+    $order = $CI->opsdesk_orders_model->get($order_id);
+    if (!$order) {
+        return;
+    }
+
+    $creator = get_staff_full_name((int) $created_by);
+    $prefix  = (int) $order->priority === 1 ? _l('opsdesk_priority_high_prefix') : '';
+    $message = $prefix . _l('opsdesk_notify_new_order', [
+        (int) $order->id,
+        e($order->combo_name),
+        (int) $order->quantity,
+        e($creator),
+    ]);
+
+    foreach (opsdesk_get_operations_staff() as $staff) {
+        if ((int) $staff['staffid'] === (int) $created_by) {
+            continue;
+        }
+
+        add_notification([
+            'description' => $message,
+            'touserid'    => (int) $staff['staffid'],
+            'link'        => 'admin/opsdesk/order/' . (int) $order->id,
+            'fromcompany' => 1,
+        ]);
+    }
+}
+
+/**
+ * Notify the order creator about a status change.
+ *
+ * @param int    $order_id
+ * @param string $new_status
+ * @param int    $changed_by
+ * @return void
+ */
+function opsdesk_notify_status_change($order_id, $new_status, $changed_by)
+{
+    $CI = &get_instance();
+
+    if (!isset($CI->opsdesk_orders_model)) {
+        $CI->load->model('opsdesk/opsdesk_orders_model');
+    }
+
+    $order = $CI->opsdesk_orders_model->get($order_id);
+    if (!$order) {
+        return;
+    }
+
+    $created_by = (int) $order->created_by;
+    if ($created_by === (int) $changed_by) {
+        return;
+    }
+
+    $prefix       = (int) $order->priority === 1 ? _l('opsdesk_priority_high_prefix') : '';
+    $status_label = ucfirst(str_replace('_', ' ', $new_status));
+    $message      = $prefix . _l('opsdesk_notify_status_updated', [
+        (int) $order->id,
+        e($order->combo_name),
+        e($status_label),
+    ]);
+
+    add_notification([
+        'description' => $message,
+        'touserid'    => $created_by,
+        'link'        => 'admin/opsdesk/order/' . (int) $order->id,
+        'fromcompany' => 1,
+    ]);
+}
+
+/**
+ * Notify the relevant party about a cancellation.
+ *
+ * If cancelled by the creator, notify Operations/Admin.
+ * If cancelled by Operations/Admin, notify the creator.
+ *
+ * @param int $order_id
+ * @param int $cancelled_by
+ * @return void
+ */
+function opsdesk_notify_cancellation($order_id, $cancelled_by)
+{
+    $CI = &get_instance();
+
+    if (!isset($CI->opsdesk_orders_model)) {
+        $CI->load->model('opsdesk/opsdesk_orders_model');
+    }
+
+    $order = $CI->opsdesk_orders_model->get($order_id);
+    if (!$order) {
+        return;
+    }
+
+    $created_by    = (int) $order->created_by;
+    $creator_name  = get_staff_full_name($created_by);
+    $canceller_name = get_staff_full_name((int) $cancelled_by);
+
+    $prefix = (int) $order->priority === 1 ? _l('opsdesk_priority_high_prefix') : '';
+
+    if ($created_by === (int) $cancelled_by) {
+        $message = $prefix . _l('opsdesk_notify_cancelled_by_sales', [
+            (int) $order->id,
+            e($order->combo_name),
+            e($creator_name),
+        ]);
+
+        foreach (opsdesk_get_operations_staff() as $staff) {
+            if ((int) $staff['staffid'] === $created_by) {
+                continue;
+            }
+
+            add_notification([
+                'description' => $message,
+                'touserid'    => (int) $staff['staffid'],
+                'link'        => 'admin/opsdesk/order/' . (int) $order->id,
+                'fromcompany' => 1,
+            ]);
+        }
+
+        return;
+    }
+
+    $message = $prefix . _l('opsdesk_notify_cancelled_by_ops', [
+        (int) $order->id,
+        e($order->combo_name),
+        e($canceller_name),
+    ]);
+
+    add_notification([
+        'description' => $message,
+        'touserid'    => $created_by,
+        'link'        => 'admin/opsdesk/order/' . (int) $order->id,
+        'fromcompany' => 1,
+    ]);
 }

@@ -65,6 +65,20 @@
                                     <?php } ?>
                                 </select>
                             </div>
+                            <div class="col-md-3">
+                                <select name="priority" class="selectpicker" data-width="100%"
+                                    onchange="this.form.submit()">
+                                    <option value="all" <?php echo ($priority_filter === null || $priority_filter === '' || $priority_filter === 'all') ? 'selected' : ''; ?>>
+                                        <?php echo _l('opsdesk_filter_priority_all'); ?>
+                                    </option>
+                                    <option value="1" <?php echo (string) $priority_filter === '1' ? 'selected' : ''; ?>>
+                                        <?php echo _l('opsdesk_priority_high'); ?>
+                                    </option>
+                                    <option value="0" <?php echo (string) $priority_filter === '0' ? 'selected' : ''; ?>>
+                                        <?php echo _l('opsdesk_priority_normal'); ?>
+                                    </option>
+                                </select>
+                            </div>
                         </form>
 
                         <div class="table-responsive">
@@ -72,6 +86,7 @@
                             <thead>
                                 <tr>
                                     <th><?php echo _l('opsdesk_order_id'); ?></th>
+                                    <th><?php echo _l('opsdesk_priority'); ?></th>
                                     <th><?php echo _l('opsdesk_combo_name'); ?></th>
                                     <th><?php echo _l('opsdesk_customer'); ?></th>
                                     <th><?php echo _l('opsdesk_order_quantity'); ?></th>
@@ -88,11 +103,12 @@
                                 <tbody>
                                     <?php foreach ($orders as $order) { ?>
                                     <tr>
-                                        <td>
+                                         <td>
                                             <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>">
                                                 #<?php echo (int) $order['id']; ?>
                                             </a>
                                         </td>
+                                        <td><?php echo opsdesk_get_priority_badge($order['priority']); ?></td>
                                         <td><?php echo e($order['combo_name'] ?: '—'); ?></td>
                                         <td>
                                             <?php
@@ -145,13 +161,13 @@
                                             <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'inline-block opsdesk-accept-form']); ?>
                                             <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
                                             <input type="hidden" name="status" value="<?php echo e($accept_status); ?>">
-                                            <select name="packed_by" class="selectpicker" data-width="100%" required>
+                                            <select name="packed_by" class="form-control input-sm opsdesk-accept-packer" style="display:inline-block;width:auto;max-width:180px;vertical-align:middle;" required>
                                                 <option value=""><?php echo _l('opsdesk_packed_by'); ?></option>
                                                 <?php foreach ($staff_members as $sm) { ?>
                                                 <option value="<?php echo (int) $sm['staffid']; ?>"><?php echo e($sm['full_name']); ?></option>
                                                 <?php } ?>
                                             </select>
-                                            <button type="submit" class="btn btn-info btn-sm">
+                                            <button type="submit" class="btn btn-info btn-sm opsdesk-accept-btn" disabled>
                                                 <?php echo _l('opsdesk_accept_order'); ?>
                                             </button>
                                             <?php echo form_close(); ?>
@@ -191,7 +207,7 @@
                                     <?php } ?>
                                     <?php if (empty($orders)) { ?>
                                     <tr>
-                                        <td colspan="<?php echo !empty($global_view) ? 10 : 9; ?>" class="text-center text-muted">
+                                        <td colspan="<?php echo !empty($global_view) ? 11 : 10; ?>" class="text-center text-muted">
                                             <?php echo _l('opsdesk_no_orders'); ?>
                                         </td>
                                     </tr>
@@ -206,5 +222,75 @@
     </div>
 </div>
 <?php init_tail(); ?>
+<script>
+(function () {
+    "use strict";
+
+    var packerRequiredMsg = <?php echo json_encode(_l('opsdesk_packed_by_required')); ?>;
+
+    function value(el) {
+        if (!el) { return ""; }
+        var v = el.value;
+        return (v === null || v === undefined) ? "" : String(v).trim();
+    }
+
+    function syncForm(form) {
+        var packer = form.querySelector(".opsdesk-accept-packer");
+        var btn = form.querySelector(".opsdesk-accept-btn");
+        if (!packer || !btn) { return; }
+        btn.disabled = value(packer) === "";
+    }
+
+    function syncAll() {
+        var forms = document.querySelectorAll(".opsdesk-accept-form");
+        for (var i = 0; i < forms.length; i++) {
+            syncForm(forms[i]);
+        }
+    }
+
+    function init() {
+        syncAll();
+
+        // Native capture-phase change listener: fires even if a bootstrap-select
+        // handler throws or stops propagation. bootstrap-select updates the
+        // underlying <select> and dispatches a native 'change' on it.
+        document.addEventListener("change", function (e) {
+            var packer = e.target && e.target.closest
+                ? e.target.closest(".opsdesk-accept-packer")
+                : null;
+            if (!packer) { return; }
+            var form = packer.closest(".opsdesk-accept-form");
+            if (form) { syncForm(form); }
+        }, true);
+
+        // Safety net: keep button state correct even if change never fires
+        // (e.g. selectpicker sets value programmatically).
+        setInterval(syncAll, 500);
+
+        // Submit guard.
+        document.addEventListener("submit", function (e) {
+            var form = e.target && e.target.closest
+                ? e.target.closest(".opsdesk-accept-form")
+                : null;
+            if (!form) { return; }
+            var packer = form.querySelector(".opsdesk-accept-packer");
+            if (value(packer) === "") {
+                e.preventDefault();
+                if (typeof alert_float === "function") {
+                    alert_float("warning", packerRequiredMsg);
+                } else {
+                    alert(packerRequiredMsg);
+                }
+            }
+        }, true);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
+})();
+</script>
 </body>
 </html>

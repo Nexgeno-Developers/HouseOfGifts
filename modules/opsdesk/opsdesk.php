@@ -6,7 +6,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 Module Name: OpsDesk
 Description: Operations desk — combo products, inventory viewer, and work order management.
 Author: OpsDesk
-Version: 1.0.4
+Version: 1.0.8
 Requires at least: 2.3.*
 */
 

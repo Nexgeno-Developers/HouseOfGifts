@@ -70,9 +70,9 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         `combo_name` varchar(191) NOT NULL DEFAULT '',
         `customer_id` int(11) DEFAULT NULL,
         `customer_city` varchar(100) DEFAULT NULL,
-        `quantity` int(11) NOT NULL DEFAULT 1,
-        `packing_type` enum('box','separate','print_then_pack','print_then_ship') NOT NULL,
-        `status` varchar(50) NOT NULL DEFAULT 'pending',
+        `quantity` decimal(15,4) NOT NULL DEFAULT 1.0000,
+        `packing_type` varchar(50) NOT NULL DEFAULT 'box',
+        `status` varchar(100) NOT NULL DEFAULT 'pending',
         `notes` text DEFAULT NULL,
         `bill_file` varchar(255) DEFAULT NULL,
         `payment_file` varchar(255) DEFAULT NULL,
@@ -159,4 +159,34 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_product_statuses')) {
     ]);
 }
 
-add_option('opsdesk_module_version', '1.0.4');
+if (!$CI->db->table_exists($prefix . 'opsdesk_packing_types')) {
+    $CI->db->query("CREATE TABLE `{$prefix}opsdesk_packing_types` (
+        `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        `type_key` VARCHAR(100) NOT NULL,
+        `name` VARCHAR(255) NOT NULL,
+        `description` TEXT NULL,
+        `display_order` INT UNSIGNED NOT NULL DEFAULT 0,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` DATETIME NULL,
+        `updated_at` DATETIME NULL,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `idx_opsdesk_pt_key` (`type_key`),
+        UNIQUE KEY `idx_opsdesk_pt_order` (`display_order`)
+    ) ENGINE=InnoDB DEFAULT CHARSET={$charset};");
+
+    $now = date('Y-m-d H:i:s');
+    $CI->db->insert_batch($prefix . 'opsdesk_packing_types', [
+        ['type_key' => 'box',              'name' => 'Box',              'description' => 'Pack items together in a single box',           'display_order' => 1, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+        ['type_key' => 'separate',         'name' => 'Separate',         'description' => 'Ship items as separate packages',               'display_order' => 2, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+        ['type_key' => 'print_then_pack',  'name' => 'Print then Pack',  'description' => 'Print labels before packing',                   'display_order' => 3, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+        ['type_key' => 'print_then_ship',  'name' => 'Print then Ship',  'description' => 'Print labels and ship directly',                'display_order' => 4, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+    ]);
+}
+
+// Widen orders.packing_type from the legacy ENUM to VARCHAR so user-managed
+// packing types can be stored without an ALTER per new type.
+if ($CI->db->field_exists('packing_type', $prefix . 'opsdesk_orders')) {
+    $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` MODIFY `packing_type` VARCHAR(50) NOT NULL DEFAULT 'box'");
+}
+
+add_option('opsdesk_module_version', '1.0.7');

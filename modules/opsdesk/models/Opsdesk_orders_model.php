@@ -36,6 +36,7 @@ class Opsdesk_orders_model extends App_Model
         $staff_id   = isset($options['staff_id']) ? (int) $options['staff_id'] : null;
         $own_only   = !empty($options['own_only']);
         $status     = $options['status'] ?? null;
+        $priority   = $options['priority'] ?? null;
 
         if (is_numeric($id)) {
             $this->db->where($this->table_orders . '.id', (int) $id);
@@ -66,6 +67,19 @@ class Opsdesk_orders_model extends App_Model
             $this->db->where($this->table_orders . '.status', $status);
         }
 
+        if ($priority !== null && $priority !== '' && $priority !== 'all') {
+            $this->db->where($this->table_orders . '.priority', (int) $priority);
+        }
+
+        // FR-020.5: High priority orders first, then newest.
+        $this->db->order_by($this->table_orders . '.priority', 'DESC');
+        $priority = $options['priority'] ?? null;
+        if ($priority !== null && $priority !== '' && $priority !== 'all') {
+            $this->db->where($this->table_orders . '.priority', (int) $priority);
+        }
+
+        // High priority (1) first, then newest.
+        $this->db->order_by($this->table_orders . '.priority', 'DESC');
         $this->db->order_by($this->table_orders . '.created_at', 'DESC');
 
         return $this->db->get($this->table_orders)->result_array();
@@ -254,7 +268,7 @@ class Opsdesk_orders_model extends App_Model
      */
     public function create_order_with_reservation($order_data, $order_items)
     {
-        $quantity = (int) ($order_data['quantity'] ?? 0);
+        $quantity = (float) ($order_data['quantity'] ?? 0);
         if ($quantity < 1 || empty($order_items)) {
             return ['success' => false, 'message' => _l('opsdesk_invalid_request')];
         }
@@ -264,13 +278,15 @@ class Opsdesk_orders_model extends App_Model
             return ['success' => false, 'message' => _l('opsdesk_stock_insufficient')];
         }
 
-        foreach ($order_items as $item) {
-            $this->ensure_inventory_row($item['sku'], $item['product_item_id'] ?? null);
-        }
-
         $this->db->trans_begin();
 
         try {
+            // Ensure an inventory row exists for each SKU inside the
+            // transaction so a later rollback also undoes any newly created row.
+            foreach ($order_items as $item) {
+                $this->ensure_inventory_row($item['sku'], $item['product_item_id'] ?? null);
+            }
+
             foreach ($order_items as $item) {
                 $this->db->query(
                     'SELECT id, quantity_available, quantity_reserved
@@ -446,6 +462,14 @@ class Opsdesk_orders_model extends App_Model
         $new_status = trim($new_status);
         $current    = $order->status;
 
+        // Guard against persisting a status key longer than the column can
+        // hold. opsdesk_orders.status is VARCHAR(100), matching
+        // opsdesk_product_statuses.status_key (VARCHAR(100)); reject anything
+        // larger so a custom key is never silently truncated into a mismatch.
+        if (mb_strlen($new_status) > 100) {
+            return ['success' => false, 'message' => _l('opsdesk_invalid_status_transition')];
+        }
+
         if ($new_status === $current) {
             return ['success' => true];
         }
@@ -524,6 +548,93 @@ class Opsdesk_orders_model extends App_Model
 
             return ['success' => false, 'message' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Assign / reassign the staff member responsible for packing an order.
+     *
+     * Persists `packed_by` independently of any status change and logs the
+     * assignment in the status history so it is auditable.
+     *
+     * @param int $order_id
+     * @param int $staff_id   the newly assigned packer (0 = unassign)
+     * @param int $by_staff_id the staff performing the assignment
+     * @return array{success:bool,message?:string}
+     */
+    public function assign($order_id, $staff_id, $by_staff_id)
+    {
+        $order = $this->get($order_id);
+        if (!$order) {
+            return ['success' => false, 'message' => _l('opsdesk_order_not_found')];
+        }
+
+        $staff_id = (int) $staff_id;
+
+        $this->db->where('id', (int) $order_id);
+        $this->db->update($this->table_orders, [
+            'packed_by'  => $staff_id > 0 ? $staff_id : null,
+            'updated_by' => (int) $by_staff_id,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        if ($this->db->affected_rows() > 0) {
+            $assigned_name = $staff_id > 0 ? get_staff_full_name($staff_id) : _l('opsdesk_unassigned');
+            $this->log_status_change(
+                (int) $order_id,
+                $order->status,
+                $order->status,
+                (int) $by_staff_id,
+                _l('opsdesk_assigned_note', [$assigned_name])
+            );
+
+            log_activity('OpsDesk Order Assigned [ID:' . $order_id . ', Packed By:' . $staff_id . ']');
+        }
+
+        return ['success' => true];
+    }
+
+    /**
+     * Update the priority flag of an order and log the change.
+     *
+     * @param int $order_id
+     * @param int $priority
+     * @param int $staff_id
+     * @return array{success:bool,message?:string}
+     */
+    public function update_priority($order_id, $priority, $staff_id)
+    {
+        $order = $this->get($order_id);
+        if (!$order) {
+            return ['success' => false, 'message' => _l('opsdesk_order_not_found')];
+        }
+
+        // Clamp to a valid priority value (0 = Normal, 1 = High).
+        $priority = (int) $priority;
+        if (!in_array($priority, [0, 1], true)) {
+            $priority = 0;
+        }
+
+        $old_priority = (int) $order->priority;
+        if ($old_priority === $priority) {
+            return ['success' => true];
+        }
+
+        $old_label = $old_priority === 1 ? _l('opsdesk_priority_high') : _l('opsdesk_priority_normal');
+        $new_label = $priority === 1 ? _l('opsdesk_priority_high') : _l('opsdesk_priority_normal');
+        $note      = _l('opsdesk_priority_changed_note', [$old_label, $new_label]);
+
+        $this->db->where('id', (int) $order_id);
+        $this->db->update($this->table_orders, [
+            'priority'   => $priority,
+            'updated_by' => (int) $staff_id,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        if ($this->db->affected_rows() > 0) {
+            $this->log_status_change((int) $order_id, $order->status, $order->status, (int) $staff_id, $note);
+        }
+
+        return ['success' => true];
     }
 
     /**

@@ -3,6 +3,26 @@
  */
 console.log('opsdesk_orders.js file loaded');
 
+// Shared helper (global scope) so every IIFE in this file can read the CSRF
+// token. Defined once here; do not redeclare inside an IIFE.
+function getCsrfPostData() {
+  if (typeof csrfData !== "undefined" && csrfData.token_name && csrfData.hash) {
+    var data = {};
+    data[csrfData.token_name] = csrfData.hash;
+    return data;
+  }
+
+  var tokenInput = jQuery("input[type='hidden'][name*='csrf']").first();
+  if (tokenInput.length) {
+    var tokenName = tokenInput.attr('name');
+    var data = {};
+    data[tokenName] = tokenInput.val();
+    return data;
+  }
+
+  return {};
+}
+
 (function ($) {
   "use strict";
 
@@ -66,28 +86,10 @@ console.log('opsdesk_orders.js file loaded');
     syncOverridesField();
   }
 
-  function getCsrfPostData() {
-    if (typeof csrfData !== "undefined" && csrfData.token_name && csrfData.hash) {
-      var data = {};
-      data[csrfData.token_name] = csrfData.hash;
-      return data;
-    }
-
-    var tokenInput = $("input[type='hidden'][name*='csrf']").first();
-    if (tokenInput.length) {
-      var tokenName = tokenInput.attr('name');
-      var data = {};
-      data[tokenName] = tokenInput.val();
-      return data;
-    }
-
-    return {};
-  }
-
   function fetchStockCheck() {
     console.log('fetchStockCheck() START');
     var comboId = $("#opsdesk_order_combo_id").val();
-    var qty = parseInt($("#opsdesk_order_qty").val(), 10) || 0;
+    var qty = parseFloat($("#opsdesk_order_qty").val()) || 0;
 
     console.log('Combo ID:', comboId, 'Qty:', qty);
 
@@ -355,6 +357,12 @@ console.log('opsdesk_orders.js file loaded');
   }
 
   $(function () {
+    // This IIFE is only for the order *form* page. The order *detail* page
+    // reuses this file but does not define the form globals.
+    if (typeof opsdeskOrderStockUrl === "undefined") {
+      console.log('OpsDesk order form globals missing — skipping form init (detail page).');
+      return;
+    }
     console.log('OpsDesk order form initializing...');
     console.log('opsdeskOrderStockUrl:', opsdeskOrderStockUrl);
     console.log('opsdeskOrderLang:', opsdeskOrderLang);
@@ -416,5 +424,108 @@ console.log('opsdesk_orders.js file loaded');
     initCustomerSearch();
 
     console.log('OpsDesk order form initialization complete');
+  });
+})(jQuery);
+
+/**
+ * OpsDesk — Order detail: inline priority change.
+ */
+(function ($) {
+  "use strict";
+
+  $(function () {
+    var $changeBtn  = $("#opsdesk_change_priority_btn");
+    if (!$changeBtn.length) {
+      return;
+    }
+
+    var $inline   = $("#opsdesk_priority_inline");
+    var $saveBtn  = $("#opsdesk_priority_save_btn");
+    var $cancelBtn = $("#opsdesk_priority_cancel_btn");
+
+    // Build the update_priority URL without relying on a global JS admin_url().
+    // opsdeskOrderBaseUrl is provided by the detail view; fall back to a
+    // path-relative guess if it is missing.
+    var orderId = $("#opsdesk_order_id").val() ||
+      window.location.pathname.split("/").filter(Boolean).pop();
+    var orderUrl = (typeof opsdeskOrderBaseUrl !== "undefined" && opsdeskOrderBaseUrl)
+      ? opsdeskOrderBaseUrl + "update_priority/" + orderId
+      : "admin/opsdesk/update_priority/" + orderId;
+
+    $changeBtn.on("click", function () {
+      $changeBtn.addClass("hide");
+      $inline.removeClass("hide");
+    });
+
+    $cancelBtn.on("click", function () {
+      $inline.addClass("hide");
+      $changeBtn.removeClass("hide");
+    });
+
+    $saveBtn.on("click", function () {
+      var priority = $("input[name='opsdesk_priority_inline']:checked").val();
+      if (priority === undefined) {
+        return;
+      }
+
+      var postData = { priority: priority };
+      $.extend(postData, getCsrfPostData());
+
+      $saveBtn.prop("disabled", true);
+
+      $.post(orderUrl, postData)
+        .done(function (response) {
+          if (typeof response === "string") {
+            try { response = JSON.parse(response); } catch (e) { response = {}; }
+          }
+          if (response.success) {
+            window.location.reload();
+          } else {
+            alert(response.message || "Error");
+            $saveBtn.prop("disabled", false);
+          }
+        })
+        .fail(function () {
+          alert("Error updating priority");
+          $saveBtn.prop("disabled", false);
+        });
+    });
+  });
+
+  /**
+   * OpsDesk — Order detail: standalone assignment (packer) save.
+   */
+  $(function () {
+    var $form = $("#opsdesk_assign_form");
+    if (!$form.length) {
+      return;
+    }
+
+    $form.on("submit", function (e) {
+      e.preventDefault();
+
+      var $btn = $("#opsdesk_assign_btn");
+      $btn.prop("disabled", true);
+
+      var postData = { packed_by: $("#opsdesk_packed_by").val() };
+      $.extend(postData, getCsrfPostData());
+
+      $.post($form.attr("action"), postData)
+        .done(function (response) {
+          if (typeof response === "string") {
+            try { response = JSON.parse(response); } catch (err) { response = {}; }
+          }
+          if (response.success) {
+            window.location.reload();
+          } else {
+            alert(response.message || "Error");
+            $btn.prop("disabled", false);
+          }
+        })
+        .fail(function () {
+          alert("Error assigning order");
+          $btn.prop("disabled", false);
+        });
+    });
   });
 })(jQuery);

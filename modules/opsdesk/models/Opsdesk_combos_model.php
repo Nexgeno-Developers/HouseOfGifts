@@ -185,6 +185,17 @@ class Opsdesk_combos_model extends App_Model
             return false;
         }
 
+        // Guard against duplicate combo items for the same combo + SKU.
+        // Returns the existing row id (truthy) instead of inserting a duplicate.
+        $existing = $this->db->where('combo_id', (int) $payload['combo_id'])
+            ->where('sku', $payload['sku'])
+            ->get(db_prefix() . 'opsdesk_combo_items')
+            ->row();
+
+        if ($existing) {
+            return (int) $existing->id;
+        }
+
         $payload['created_at'] = date('Y-m-d H:i:s');
         $payload['updated_at'] = date('Y-m-d H:i:s');
 

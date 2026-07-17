@@ -34,7 +34,7 @@
                             <div class="col-md-2">
                                 <?php echo render_input('quantity', 'opsdesk_order_quantity', !empty($prefill['quantity']) ? $prefill['quantity'] : '1', 'number', [
                                     'min'  => '1',
-                                    'step' => '1',
+                                    'step' => 'any',
                                     'id'   => 'opsdesk_order_qty',
                                     'required' => true,
                                 ]); ?>
@@ -51,6 +51,21 @@
                                         <?php } ?>
                                     </select>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="control-label"><?php echo _l('opsdesk_priority'); ?></label>
+                                <div class="radio radio-primary radio-inline mright15">
+                                    <input type="radio" name="priority" id="opsdesk_priority_normal" value="0" checked>
+                                    <label for="opsdesk_priority_normal"><?php echo _l('opsdesk_priority_normal'); ?></label>
+                                </div>
+                                <div class="radio radio-danger radio-inline">
+                                    <input type="radio" name="priority" id="opsdesk_priority_high" value="1">
+                                    <label for="opsdesk_priority_high"><?php echo _l('opsdesk_priority_high'); ?></label>
+                                </div>
+                                <p class="text-muted mtop5"><small><?php echo _l('opsdesk_priority_help'); ?></small></p>
                             </div>
                         </div>
 

@@ -60,7 +60,62 @@
     window.new_opsdesk_product_status = new_opsdesk_product_status;
     window.edit_opsdesk_product_status = edit_opsdesk_product_status;
 
+    function new_opsdesk_packing_type() {
+        $("#opsdesk_packing_type_modal").modal("show");
+        $("#opsdesk_packing_type_setting").trigger("reset");
+        $("#opsdesk_packing_type_id_t").html("");
+        $(".edit-title").hide();
+        $(".add-title").show();
+        $('#opsdesk_packing_type_modal input[name="is_active"]').prop("checked", true);
+    }
+
+    function edit_opsdesk_packing_type(invoker, id) {
+        $("#opsdesk_packing_type_id_t").html('<input type="hidden" name="id" value="' + id + '">');
+        $("#opsdesk_packing_type_modal input[name=\"type_key\"]").val($(invoker).data("type_key"));
+        $("#opsdesk_packing_type_modal input[name=\"name\"]").val($(invoker).data("name"));
+        $("#opsdesk_packing_type_modal textarea[name=\"description\"]").val($(invoker).data("description"));
+        $("#opsdesk_packing_type_modal input[name=\"display_order\"]").val($(invoker).data("display_order"));
+        $("#opsdesk_packing_type_modal input[name=\"is_active\"]").prop("checked", $(invoker).data("is_active") == "1");
+        $(".add-title").hide();
+        $(".edit-title").show();
+        $("#opsdesk_packing_type_modal").modal("show");
+    }
+
+    function bindPackingTypeForm() {
+        $("#opsdesk_packing_type_setting").on("submit", function (e) {
+            var orderValue = parseInt($('#opsdesk_packing_type_modal input[name="display_order"]').val(), 10);
+            var currentId = parseInt($("#opsdesk_packing_type_id_t input[name=\"id\"]").val(), 10) || 0;
+            var keyValue = ($('#opsdesk_packing_type_modal input[name="type_key"]').val() || "").trim();
+
+            if (!isNaN(orderValue)) {
+                var alreadyUsedOrder = existing_opsdesk_packing_type_orders.some(function (item) {
+                    return item.order === orderValue && item.id !== currentId;
+                });
+
+                if (alreadyUsedOrder) {
+                    e.preventDefault();
+                    alert(opsdeskPackingTypeLang.displayOrderInUse);
+                    return false;
+                }
+            }
+
+            var alreadyUsedKey = existing_opsdesk_packing_type_keys.some(function (item) {
+                return item.key.toLowerCase() === keyValue.toLowerCase() && item.id !== currentId;
+            });
+
+            if (keyValue && alreadyUsedKey) {
+                e.preventDefault();
+                alert(opsdeskPackingTypeLang.keyInUse);
+                return false;
+            }
+        });
+    }
+
+    window.new_opsdesk_packing_type = new_opsdesk_packing_type;
+    window.edit_opsdesk_packing_type = edit_opsdesk_packing_type;
+
     $(function () {
         bindProductStatusForm();
+        bindPackingTypeForm();
     });
 })(jQuery);

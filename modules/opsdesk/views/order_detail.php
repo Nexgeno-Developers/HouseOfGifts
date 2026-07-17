@@ -11,6 +11,7 @@
                         <span class="label <?php echo opsdesk_get_order_status_class($order->status); ?> mleft5">
                             <?php echo e(opsdesk_get_order_status_label($order->status)); ?>
                         </span>
+                        <?php echo opsdesk_get_priority_badge($order->priority); ?>
                     </h4>
                     <a href="<?php echo admin_url('opsdesk/orders'); ?>" class="btn btn-default">
                         <?php echo _l('opsdesk_all_orders'); ?>
@@ -85,19 +86,60 @@
 
                                 <div class="opsdesk-assignment-info mtop15">
                                     <h5><?php echo _l('opsdesk_assignment'); ?></h5>
+                                    <?php if (!empty($can_edit)) { ?>
+                                    <?php echo form_open(admin_url('opsdesk/assign_order/' . $order->id), ['id' => 'opsdesk_assign_form']); ?>
+                                    <div class="form-group">
+                                        <select name="packed_by" id="opsdesk_packed_by" class="selectpicker" data-width="100%">
+                                            <option value=""><?php echo _l('opsdesk_unassigned'); ?></option>
+                                            <?php foreach ($staff_members as $sm) { ?>
+                                            <option value="<?php echo (int) $sm['staffid']; ?>"
+                                                <?php echo (!empty($order->packed_by) && (int) $order->packed_by === (int) $sm['staffid']) ? 'selected' : ''; ?>>
+                                                <?php echo e($sm['full_name']); ?>
+                                            </option>
+                                            <?php } ?>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm" id="opsdesk_assign_btn">
+                                        <?php echo _l('opsdesk_assign'); ?>
+                                    </button>
+                                    <?php echo form_close(); ?>
+                                    <?php } else { ?>
                                     <table class="table table-borderless">
                                         <tr>
                                             <th><?php echo _l('opsdesk_packed_by'); ?></th>
                                             <td><?php echo $packed_by_name ? e($packed_by_name) : '—'; ?></td>
                                         </tr>
-                                        <tr>
-                                            <th><?php echo _l('opsdesk_count_by'); ?></th>
-                                            <td><?php echo $count_by_name ? e($count_by_name) : '—'; ?></td>
-                                        </tr>
                                     </table>
+                                    <?php } ?>
                                 </div>
 
                                 <div class="opsdesk-stack-actions mtop15">
+                                    <?php if (!empty($can_edit)) { ?>
+                                    <div class="opsdesk-priority-block mbot15">
+                                        <button type="button" class="btn btn-default btn-sm" id="opsdesk_change_priority_btn">
+                                            <i class="fa fa-flag"></i> <?php echo _l('opsdesk_change_priority'); ?>
+                                        </button>
+                                        <div id="opsdesk_priority_inline" class="hide mtop10">
+                                            <div class="radio radio-primary radio-inline mright15">
+                                                <input type="radio" name="opsdesk_priority_inline" id="opsdesk_p_inline_normal" value="0"
+                                                    <?php echo (int) $order->priority === 0 ? 'checked' : ''; ?>>
+                                                <label for="opsdesk_p_inline_normal"><?php echo _l('opsdesk_priority_normal'); ?></label>
+                                            </div>
+                                            <div class="radio radio-danger radio-inline mright15">
+                                                <input type="radio" name="opsdesk_priority_inline" id="opsdesk_p_inline_high" value="1"
+                                                    <?php echo (int) $order->priority === 1 ? 'checked' : ''; ?>>
+                                                <label for="opsdesk_p_inline_high"><?php echo _l('opsdesk_priority_high'); ?></label>
+                                            </div>
+                                            <button type="button" class="btn btn-primary btn-sm" id="opsdesk_priority_save_btn">
+                                                <?php echo _l('submit'); ?>
+                                            </button>
+                                            <button type="button" class="btn btn-default btn-sm" id="opsdesk_priority_cancel_btn">
+                                                <?php echo _l('cancel'); ?>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <?php } ?>
+
                                     <?php if (!empty($can_cancel_own) || !empty($can_cancel_any)) { ?>
                                     <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order->id); ?>"
                                         class="btn btn-danger _delete"
@@ -111,33 +153,6 @@
                                     <?php echo form_open(admin_url('opsdesk/update_order_status')); ?>
                                     <input type="hidden" name="order_id" value="<?php echo (int) $order->id; ?>">
                                     <input type="hidden" name="status" value="<?php echo e($st); ?>">
-                                    <?php if ($st === 'in_progress') { ?>
-                                    <div class="form-group">
-                                        <label class="control-label"><?php echo _l('opsdesk_packed_by'); ?> <span class="text-danger">*</span></label>
-                                        <select name="packed_by" class="selectpicker" data-width="100%" required>
-                                            <option value=""></option>
-                                            <?php foreach ($staff_members as $sm) { ?>
-                                            <option value="<?php echo (int) $sm['staffid']; ?>"
-                                                <?php echo (!empty($order->packed_by) && (int) $order->packed_by === (int) $sm['staffid']) ? 'selected' : ''; ?>>
-                                                <?php echo e($sm['full_name']); ?>
-                                            </option>
-                                            <?php } ?>
-                                        </select>
-                                    </div>
-                                    <?php } elseif ($st === 'completed') { ?>
-                                    <div class="form-group">
-                                        <label class="control-label"><?php echo _l('opsdesk_count_by'); ?> <span class="text-danger">*</span></label>
-                                        <select name="count_by" class="selectpicker" data-width="100%" required>
-                                            <option value=""></option>
-                                            <?php foreach ($staff_members as $sm) { ?>
-                                            <option value="<?php echo (int) $sm['staffid']; ?>"
-                                                <?php echo (!empty($order->count_by) && (int) $order->count_by === (int) $sm['staffid']) ? 'selected' : ''; ?>>
-                                                <?php echo e($sm['full_name']); ?>
-                                            </option>
-                                            <?php } ?>
-                                        </select>
-                                    </div>
-                                    <?php } ?>
                                     <button type="submit" class="btn btn-<?php echo $st === 'completed' ? 'success' : ($st === 'cancelled' ? 'danger' : 'info'); ?>">
                                         <?php echo e(opsdesk_get_order_status_label($st)); ?>
                                     </button>
@@ -194,7 +209,10 @@
                                 <?php echo e(opsdesk_get_order_status_label($log['from_status'])); ?>
                                 →
                                 <?php } ?>
-                                <?php echo e(opsdesk_get_order_status_label($log['to_status'])); ?>
+                                 <?php echo e(opsdesk_get_order_status_label($log['to_status'])); ?>
+                                <?php if (!empty($log['notes'])) { ?>
+                                <span class="text-muted mleft5">— <?php echo e($log['notes']); ?></span>
+                                <?php } ?>
                             </li>
                             <?php } ?>
                         </ul>
@@ -204,6 +222,23 @@
         </div>
     </div>
 </div>
+<input type="hidden" id="opsdesk_order_id" value="<?php echo (int) $order->id; ?>">
+
 <?php init_tail(); ?>
+
+<script>
+    // Globals expected by opsdesk_orders.js (form IIFE is guarded by their
+    // absence, but they must be declared to avoid ReferenceErrors on load).
+    var opsdeskOrderStockUrl = '';
+    var opsdeskProductDetailsUrl = '';
+    var opsdeskClientsUrl = '';
+    var opsdeskOrderPrefill = {};
+    var opsdeskOrderLang = {};
+    // Base admin URL used by the priority-change IIFE (no global admin_url() in JS).
+    var opsdeskOrderBaseUrl = '<?php echo admin_url('opsdesk/'); ?>';
+</script>
+
+<script src="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/js/opsdesk_orders.js'); ?>"></script>
+
 </body>
 </html>

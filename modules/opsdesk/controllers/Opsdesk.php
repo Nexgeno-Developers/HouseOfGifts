@@ -12,6 +12,7 @@ class Opsdesk extends AdminController
         $this->load->model('opsdesk/opsdesk_inventory_model');
         $this->load->model('opsdesk/opsdesk_orders_model');
         $this->load->model('opsdesk/opsdesk_product_statuses_model');
+        $this->load->model('opsdesk/opsdesk_packing_types_model');
     }
 
     /**
@@ -53,10 +54,21 @@ class Opsdesk extends AdminController
 
         $data['group']  = $group;
         $data['title']  = _l('opsdesk_settings');
-        $data['tabs']   = ['product_statuses'];
+        $data['tabs']   = ['product_statuses', 'packing_types'];
+
+        // Only allow known tabs; fall back to the default to avoid loading a
+        // non-existent view via a crafted URL segment.
+        if (!in_array($group, $data['tabs'], true)) {
+            $group = 'product_statuses';
+            $data['group'] = $group;
+        }
 
         if ($group === 'product_statuses') {
             $data['product_statuses'] = $this->opsdesk_product_statuses_model->get();
+        }
+
+        if ($group === 'packing_types') {
+            $data['packing_types'] = $this->opsdesk_packing_types_model->get();
         }
 
         $data['tab_view'] = 'includes/' . $group;
@@ -139,6 +151,78 @@ class Opsdesk extends AdminController
         }
 
         redirect(admin_url('opsdesk/settings/product_statuses'));
+    }
+
+    /**
+     * AJAX/POST: save (add/update) a packing type from the Settings tab.
+     */
+    public function packing_type_setting($id = '')
+    {
+        if (!opsdesk_can_manage_settings()) {
+            access_denied('opsdesk');
+        }
+
+        if ($this->input->post()) {
+            $data = $this->input->post();
+            $data['is_active']    = isset($data['is_active']) ? 1 : 0;
+            $data['display_order'] = (int) ($data['display_order'] ?? 0);
+
+            if (!$this->input->post('id')) {
+                $mess = $this->opsdesk_packing_types_model->add($data);
+
+                if (is_numeric($mess) && (int) $mess > 0) {
+                    set_alert('success', _l('added_successfully', _l('opsdesk_packing_type')));
+                } elseif ($mess === 'duplicate_order') {
+                    set_alert('warning', _l('opsdesk_packing_type_display_order_in_use'));
+                } elseif ($mess === 'duplicate_key') {
+                    set_alert('warning', _l('opsdesk_packing_type_key_in_use'));
+                } else {
+                    set_alert('warning', _l('opsdesk_problem_adding_packing_type'));
+                }
+
+                redirect(admin_url('opsdesk/settings/packing_types'));
+            }
+
+            $pid   = (int) $data['id'];
+            unset($data['id']);
+            $success = $this->opsdesk_packing_types_model->update($data, $pid);
+
+            if ($success === true) {
+                set_alert('success', _l('updated_successfully', _l('opsdesk_packing_type')));
+            } elseif ($success === 'duplicate_order') {
+                set_alert('warning', _l('opsdesk_packing_type_display_order_in_use'));
+            } elseif ($success === 'duplicate_key') {
+                set_alert('warning', _l('opsdesk_packing_type_key_in_use'));
+            } else {
+                set_alert('warning', _l('opsdesk_problem_updating_packing_type'));
+            }
+
+            redirect(admin_url('opsdesk/settings/packing_types'));
+        }
+    }
+
+    /**
+     * Delete a packing type.
+     */
+    public function delete_packing_type($id)
+    {
+        if (!opsdesk_can_manage_settings()) {
+            access_denied('opsdesk');
+        }
+
+        if (!$id) {
+            redirect(admin_url('opsdesk/settings/packing_types'));
+        }
+
+        $response = $this->opsdesk_packing_types_model->delete($id);
+
+        if ($response) {
+            set_alert('success', _l('deleted', _l('opsdesk_packing_type')));
+        } else {
+            set_alert('warning', _l('opsdesk_problem_deleting_packing_type'));
+        }
+
+        redirect(admin_url('opsdesk/settings/packing_types'));
     }
 
     /**
@@ -548,16 +632,19 @@ class Opsdesk extends AdminController
             access_denied('opsdesk_orders');
         }
 
-        $status_filter = $this->input->get('status');
-        $own_only      = !opsdesk_can_view_all_orders();
+        $status_filter  = $this->input->get('status');
+        $priority_filter = $this->input->get('priority');
+        $own_only       = !opsdesk_can_view_all_orders();
 
         $data['title']         = _l('opsdesk_all_orders');
         $data['orders']        = $this->opsdesk_orders_model->get('', [
             'own_only' => $own_only,
             'staff_id' => get_staff_user_id(),
             'status'   => $status_filter,
+            'priority' => $priority_filter,
         ]);
-        $data['status_filter'] = $status_filter;
+        $data['status_filter']   = $status_filter;
+        $data['priority_filter'] = $priority_filter;
         $data['status_counts'] = $this->opsdesk_orders_model->count_by_status([
             'own_only' => $own_only,
             'staff_id' => get_staff_user_id(),
@@ -647,7 +734,6 @@ class Opsdesk extends AdminController
         $data['packing_types']  = opsdesk_get_packing_types();
         $data['staff_members']  = opsdesk_get_staff_members();
         $data['packed_by_name'] = opsdesk_get_assigned_name($order->packed_by ?? null);
-        $data['count_by_name']  = opsdesk_get_assigned_name($order->count_by ?? null);
         $data['can_edit']       = opsdesk_can_edit_orders();
         $data['can_cancel_own'] = (int) $order->created_by === (int) get_staff_user_id()
             && $order->status === 'pending';
@@ -672,8 +758,10 @@ class Opsdesk extends AdminController
         }
 
         $combo_id     = (int) $this->input->post('combo_id');
-        $quantity     = (int) $this->input->post('quantity');
+        $quantity     = (float) $this->input->post('quantity');
         $packing_type = trim($this->input->post('packing_type') ?? '');
+        $priority     = (int) $this->input->post('priority');
+        $priority     = in_array($priority, [0, 1], true) ? $priority : 0;
         $packing_types = array_keys(opsdesk_get_packing_types());
 
         if ($combo_id <= 0 || $quantity < 1 || !in_array($packing_type, $packing_types, true)) {
@@ -733,12 +821,20 @@ class Opsdesk extends AdminController
             'notes'        => trim($this->input->post('notes') ?? ''),
             'bill_file'    => $bill_upload['file'],
             'payment_file' => $payment_file,
+            'priority'     => $priority,
             'created_by'   => get_staff_user_id(),
         ], $built['items']);
 
         if (!$result['success']) {
             set_alert('warning', $result['message']);
             redirect(admin_url('opsdesk/order?combo_id=' . $combo_id . '&quantity=' . $quantity));
+        }
+
+        // FR-021.1: fire notification AFTER commit (outside transaction).
+        try {
+            opsdesk_notify_new_order($result['order_id'], get_staff_user_id());
+        } catch (Exception $e) {
+            log_activity('OpsDesk new order notification failed [ID:' . $result['order_id'] . ']: ' . $e->getMessage());
         }
 
         set_alert('success', _l('opsdesk_order_created', $result['order_id']));
@@ -765,9 +861,6 @@ class Opsdesk extends AdminController
         if ($new_status === 'in_progress' && !(int) $this->input->post('packed_by')) {
             $assignment_error = _l('opsdesk_packed_by_required');
         }
-        if ($new_status === 'completed' && !(int) $this->input->post('count_by')) {
-            $assignment_error = _l('opsdesk_count_by_required');
-        }
 
         if ($assignment_error !== '') {
             if ($this->input->is_ajax_request()) {
@@ -780,10 +873,6 @@ class Opsdesk extends AdminController
 
         if ($this->input->post('packed_by')) {
             $extra['packed_by'] = (int) $this->input->post('packed_by');
-        }
-
-        if ($this->input->post('count_by')) {
-            $extra['count_by'] = (int) $this->input->post('count_by');
         }
 
         if ($this->input->post('packing_type')) {
@@ -800,6 +889,16 @@ class Opsdesk extends AdminController
             get_staff_user_id(),
             $extra
         );
+
+        // FR-021.2: notify creator on status change (not for cancellations,
+        // which route through cancel_order and fire opsdesk_notify_cancellation).
+        if ($result['success'] && $new_status !== 'cancelled') {
+            try {
+                opsdesk_notify_status_change($order_id, $new_status, get_staff_user_id());
+            } catch (Exception $e) {
+                log_activity('OpsDesk status change notification failed [ID:' . $order_id . ']: ' . $e->getMessage());
+            }
+        }
 
         if ($this->input->is_ajax_request()) {
             echo json_encode($result);
@@ -837,6 +936,15 @@ class Opsdesk extends AdminController
             $can_edit_global
         );
 
+        // FR-021.3/4: fire cancellation notification AFTER commit.
+        if ($result['success']) {
+            try {
+                opsdesk_notify_cancellation((int) $id, get_staff_user_id());
+            } catch (Exception $e) {
+                log_activity('OpsDesk cancellation notification failed [ID:' . $id . ']: ' . $e->getMessage());
+            }
+        }
+
         if ($this->input->is_ajax_request()) {
             echo json_encode($result);
             die;
@@ -849,6 +957,100 @@ class Opsdesk extends AdminController
         }
 
         redirect(admin_url('opsdesk/order/' . $id));
+    }
+
+    /**
+     * POST: update order priority (Operations/Admin only — Sales blocked).
+     *
+     * @param int $order_id
+     */
+    public function update_priority($order_id = '')
+    {
+        if (!opsdesk_can_edit_orders()) {
+            if ($this->input->is_ajax_request()) {
+                ajax_access_denied();
+            }
+            access_denied('opsdesk_orders');
+        }
+
+        if (!is_numeric($order_id)) {
+            if ($this->input->is_ajax_request()) {
+                echo json_encode(['success' => false, 'message' => _l('opsdesk_order_not_found')]);
+                die;
+            }
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        $priority = (int) $this->input->post('priority');
+        if (!in_array($priority, [0, 1], true)) {
+            if ($this->input->is_ajax_request()) {
+                echo json_encode(['success' => false, 'message' => _l('opsdesk_invalid_request')]);
+                die;
+            }
+            set_alert('warning', _l('opsdesk_invalid_request'));
+            redirect(admin_url('opsdesk/order/' . $order_id));
+        }
+
+        $result = $this->opsdesk_orders_model->update_priority(
+            (int) $order_id,
+            $priority,
+            get_staff_user_id()
+        );
+
+        if ($this->input->is_ajax_request()) {
+            echo json_encode($result);
+            die;
+        }
+
+        if ($result['success']) {
+            set_alert('success', _l('updated_successfully', _l('opsdesk_order')));
+        } else {
+            set_alert('warning', $result['message'] ?? _l('opsdesk_problem_updating'));
+        }
+
+        redirect(admin_url('opsdesk/order/' . $order_id));
+    }
+
+    /**
+     * POST: assign / reassign the packer for an order (Operations/Admin).
+     */
+    public function assign_order($order_id = '')
+    {
+        if (!opsdesk_can_edit_orders()) {
+            if ($this->input->is_ajax_request()) {
+                ajax_access_denied();
+            }
+            access_denied('opsdesk_orders');
+        }
+
+        if (!is_numeric($order_id)) {
+            if ($this->input->is_ajax_request()) {
+                echo json_encode(['success' => false, 'message' => _l('opsdesk_order_not_found')]);
+                die;
+            }
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        $packed_by = (int) $this->input->post('packed_by');
+
+        $result = $this->opsdesk_orders_model->assign(
+            (int) $order_id,
+            $packed_by,
+            get_staff_user_id()
+        );
+
+        if ($this->input->is_ajax_request()) {
+            echo json_encode($result);
+            die;
+        }
+
+        if ($result['success']) {
+            set_alert('success', _l('updated_successfully', _l('opsdesk_assignment')));
+        } else {
+            set_alert('warning', $result['message'] ?? _l('opsdesk_problem_updating'));
+        }
+
+        redirect(admin_url('opsdesk/order/' . $order_id));
     }
 
     /**

@@ -6,6 +6,8 @@
 /uploads/
 /modules/*/uploads/
 
+# Ignore Test files 
+/modules/opsdesk/tests/
 # Ignore CI session files
 ci_sessions/
 /ci_sessions/

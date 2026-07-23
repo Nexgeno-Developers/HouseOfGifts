@@ -94,7 +94,7 @@
                                         <?php echo _l('opsdesk_customer_city'); ?>
                                     </label>
                                     <input type="text" name="customer_city" id="opsdesk_customer_city"
-                                        class="form-control" readonly
+                                        class="form-control"
                                         value="<?php echo e($prefill['customer_city'] ?? ''); ?>">
                                 </div>
                             </div>

@@ -55,6 +55,22 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group select-placeholder">
+                                    <label for="opsdesk_transport_medium" class="control-label">
+                                        <?php echo _l('opsdesk_transport_medium'); ?> <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="transport_medium_id" id="opsdesk_transport_medium" class="selectpicker" data-width="100%" required>
+                                        <option value=""></option>
+                                        <?php foreach ($transport_mediums as $key => $label) { ?>
+                                        <option value="<?php echo e($key); ?>"><?php echo e($label); ?></option>
+                                        <?php } ?>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6">
                                 <label class="control-label"><?php echo _l('opsdesk_priority'); ?></label>
                                 <div class="radio radio-primary radio-inline mright15">
@@ -100,6 +116,39 @@
                             </div>
                         </div>
 
+                        <div class="mtop20">
+                            <h5><?php echo _l('opsdesk_combo_items'); ?></h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-bordered" id="opsdesk_order_components">
+                                    <thead>
+                                        <tr>
+                                            <th><?php echo _l('opsdesk_sku'); ?></th>
+                                            <th><?php echo _l('opsdesk_product'); ?></th>
+                                            <th class="text-right"><?php echo _l('opsdesk_available_stock'); ?></th>
+                                            <th class="text-right"><?php echo _l('opsdesk_quantity_needed'); ?></th>
+                                            <th class="text-center"><?php echo _l('opsdesk_status'); ?></th>
+                                            <th class="text-center"><?php echo _l('opsdesk_actions'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="opsdesk_order_components_body">
+                                        <tr id="opsdesk_order_empty_row">
+                                            <td colspan="6" class="text-center text-muted">
+                                                <?php echo _l('opsdesk_select_combo_to_begin'); ?>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="opsdesk_order_loading" class="hide text-center mtop10">
+                            <i class="fa fa-spinner fa-spin fa-2x"></i>
+                        </div>
+
+                        <div id="opsdesk_order_alert" class="hide alert mtop15"></div>
+
+                        <div id="opsdesk_order_summary" class="hide alert mtop15"></div>
+
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -123,41 +172,11 @@
                             </div>
                         </div>
 
-                        <div id="opsdesk_order_loading" class="hide text-center mtop10">
-                            <i class="fa fa-spinner fa-spin fa-2x"></i>
-                        </div>
-
-                        <div id="opsdesk_order_alert" class="hide alert mtop15"></div>
-
-                        <div class="table-responsive mtop20">
-                            <table class="table table-striped table-bordered" id="opsdesk_order_components">
-                                <thead>
-                                    <tr>
-                                        <th><?php echo _l('opsdesk_sku'); ?></th>
-                                        <th><?php echo _l('opsdesk_product'); ?></th>
-                                        <th class="text-right"><?php echo _l('opsdesk_available_stock'); ?></th>
-                                        <th class="text-right"><?php echo _l('opsdesk_quantity_needed'); ?></th>
-                                        <th class="text-center"><?php echo _l('opsdesk_status'); ?></th>
-                                        <th class="text-center"><?php echo _l('opsdesk_actions'); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="opsdesk_order_components_body">
-                                    <tr id="opsdesk_order_empty_row">
-                                        <td colspan="6" class="text-center text-muted">
-                                            <?php echo _l('opsdesk_select_combo_to_begin'); ?>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div id="opsdesk_order_summary" class="hide alert mtop15"></div>
-
                         <div class="mtop20">
-                            <button type="submit" id="opsdesk_submit_order" class="btn btn-primary" disabled>
+                            <button type="submit" id="opsdesk_submit_order" class="btn btn-primary button-margin-r-b" disabled>
                                 <i class="fa fa-check"></i> <?php echo _l('opsdesk_confirm_order'); ?>
                             </button>
-                            <a href="<?php echo admin_url('opsdesk/orders'); ?>" class="btn btn-default">
+                            <a href="<?php echo admin_url('opsdesk/orders'); ?>" class="btn btn-default button-margin-r-b">
                                 <?php echo _l('cancel'); ?>
                             </a>
                         </div>
@@ -171,7 +190,7 @@
 </div>
 
 <div class="modal fade" id="opsdesk_substitute_modal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog ht-dialog-width">
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>

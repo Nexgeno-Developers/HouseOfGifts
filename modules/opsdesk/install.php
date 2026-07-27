@@ -76,6 +76,9 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         `notes` text DEFAULT NULL,
         `bill_file` varchar(255) DEFAULT NULL,
         `payment_file` varchar(255) DEFAULT NULL,
+        `lr_copy` varchar(255) DEFAULT NULL,
+        `carton_photo` varchar(255) DEFAULT NULL,
+        `carton_count` int(11) DEFAULT NULL,
         `created_by` int(11) NOT NULL,
         `updated_by` int(11) DEFAULT NULL,
         `packed_by` int(11) DEFAULT NULL,
@@ -183,10 +186,80 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_packing_types')) {
     ]);
 }
 
+// Add transport mediums table
+if (!$CI->db->table_exists($prefix . 'opsdesk_transport_mediums')) {
+    $CI->db->query("CREATE TABLE `{$prefix}opsdesk_transport_mediums` (
+        `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        `type_key` VARCHAR(100) NOT NULL,
+        `name` VARCHAR(255) NOT NULL,
+        `description` TEXT NULL,
+        `display_order` INT UNSIGNED NOT NULL DEFAULT 0,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` DATETIME NULL,
+        `updated_at` DATETIME NULL,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `idx_opsdesk_tm_key` (`type_key`),
+        UNIQUE KEY `idx_opsdesk_tm_order` (`display_order`)
+    ) ENGINE=InnoDB DEFAULT CHARSET={$charset};");
+
+    $now = date('Y-m-d H:i:s');
+    $CI->db->insert_batch($prefix . 'opsdesk_transport_mediums', [
+        ['type_key' => 'road',        'name' => 'Road Transport',       'description' => 'Transport by road/truck',              'display_order' => 1, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+        ['type_key' => 'rail',        'name' => 'Rail Transport',       'description' => 'Transport by train/railway',           'display_order' => 2, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+        ['type_key' => 'air',         'name' => 'Air Transport',        'description' => 'Transport by airplane/cargo plane',    'display_order' => 3, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+        ['type_key' => 'sea',         'name' => 'Sea Transport',        'description' => 'Transport by ship/cargo vessel',       'display_order' => 4, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+        ['type_key' => 'multimodal',  'name' => 'Multimodal Transport', 'description' => 'Combination of multiple transport modes','display_order' => 5, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now],
+    ]);
+}
+
+// Add transport_medium_id to orders table
+if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
+    $CI->db->query("CREATE TABLE `{$prefix}opsdesk_orders` (
+        `id` int(11) NOT NULL AUTO_INCREMENT,
+        `combo_id` int(11) NOT NULL,
+        `combo_name` varchar(191) NOT NULL DEFAULT '',
+        `customer_id` int(11) DEFAULT NULL,
+        `customer_city` varchar(100) DEFAULT NULL,
+        `quantity` decimal(15,4) NOT NULL DEFAULT 1.0000,
+        `packing_type` varchar(50) NOT NULL DEFAULT 'box',
+        `transport_medium_id` int(11) UNSIGNED DEFAULT NULL,
+        `status` varchar(100) NOT NULL DEFAULT 'pending',
+        `notes` text DEFAULT NULL,
+        `bill_file` varchar(255) DEFAULT NULL,
+        `payment_file` varchar(255) DEFAULT NULL,
+        `lr_copy` varchar(255) DEFAULT NULL,
+        `carton_photo` varchar(255) DEFAULT NULL,
+        `carton_count` int(11) DEFAULT NULL,
+        `created_by` int(11) NOT NULL,
+        `updated_by` int(11) DEFAULT NULL,
+        `packed_by` int(11) DEFAULT NULL,
+        `count_by` int(11) DEFAULT NULL,
+        `cancelled_by` int(11) DEFAULT NULL,
+        `cancelled_at` datetime DEFAULT NULL,
+        `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `idx_opsdesk_orders_combo_id` (`combo_id`),
+        KEY `idx_opsdesk_orders_status` (`status`),
+        KEY `idx_opsdesk_orders_transport_medium` (`transport_medium_id`),
+        KEY `idx_opsdesk_orders_created_by` (`created_by`),
+        KEY `idx_opsdesk_orders_created_at` (`created_at`),
+        CONSTRAINT `fk_opsdesk_orders_combo`
+            FOREIGN KEY (`combo_id`) REFERENCES `{$prefix}opsdesk_combos` (`id`)
+            ON DELETE RESTRICT ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET={$charset};");
+} else {
+    // Add transport_medium_id column if it doesn't exist (for existing installations)
+    if (!$CI->db->field_exists('transport_medium_id', $prefix . 'opsdesk_orders')) {
+        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD COLUMN `transport_medium_id` INT UNSIGNED DEFAULT NULL AFTER `packing_type`");
+        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD INDEX `idx_opsdesk_orders_transport_medium` (`transport_medium_id`)");
+    }
+}
+
 // Widen orders.packing_type from the legacy ENUM to VARCHAR so user-managed
 // packing types can be stored without an ALTER per new type.
 if ($CI->db->field_exists('packing_type', $prefix . 'opsdesk_orders')) {
     $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` MODIFY `packing_type` VARCHAR(50) NOT NULL DEFAULT 'box'");
 }
 
-add_option('opsdesk_module_version', '1.0.7');
+add_option('opsdesk_module_version', '1.0.11');

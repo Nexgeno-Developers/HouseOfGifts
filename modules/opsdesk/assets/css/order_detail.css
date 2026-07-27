@@ -1,0 +1,34 @@
+/* OpsDesk — order detail view styles */
+
+.hr-panel-heading {
+    border-top: 1px solid #e8e8e8;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.h4-color {
+    color: #d8341b;
+}
+
+.hr-color {
+    margin-top: 10px;
+    border-bottom: 0.5px solid;
+    color: #d8341b;
+}
+
+.panel-padding {
+    padding-right: 0;
+    padding-left: 0;
+}
+
+.card1 {
+    border-radius: 5px;
+    box-shadow: 0 1px 2.94px 0.06px rgba(4, 26, 55, 0.16);
+    border: none;
+    margin-bottom: 30px;
+    transition: all 0.3s ease-in-out;
+}
+
+.card .card-block {
+    padding: 20px;
+}

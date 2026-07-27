@@ -20,7 +20,13 @@
                         </ul>
                         <div class="tab-content mtop15">
                             <div class="tab-pane active">
-                                <?php $this->load->view($tab_view, ['group' => $group, 'product_statuses' => $product_statuses]); ?>
+                                <?php if ($group === 'product_statuses') { ?>
+                                    <?php $this->load->view($tab_view, ['group' => $group, 'product_statuses' => $product_statuses]); ?>
+                                <?php } elseif ($group === 'packing_types') { ?>
+                                    <?php $this->load->view($tab_view, ['group' => $group, 'packing_types' => $packing_types]); ?>
+                                <?php } elseif ($group === 'transport_mediums') { ?>
+                                    <?php $this->load->view($tab_view, ['group' => $group, 'transport_mediums' => $transport_mediums]); ?>
+                                <?php } ?>
                             </div>
                         </div>
                     </div>

@@ -1,13 +1,14 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
 <link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
+<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/orders_list.css'); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">
             <div class="col-md-12">
                 <?php if (!empty($can_create)) { ?>
                 <div class="tw-mb-2">
-                    <a href="<?php echo admin_url('opsdesk/order'); ?>" class="btn btn-primary">
+                    <a href="<?php echo admin_url('opsdesk/order'); ?>" class="btn btn-primary button-margin-r-b">
                         <i class="fa-regular fa-plus tw-mr-1"></i>
                         <?php echo _l('opsdesk_new_order'); ?>
                     </a>
@@ -91,6 +92,7 @@
                                     <th><?php echo _l('opsdesk_customer'); ?></th>
                                     <th><?php echo _l('opsdesk_order_quantity'); ?></th>
                                     <th><?php echo _l('opsdesk_packing_type'); ?></th>
+                                    <th><?php echo _l('opsdesk_transport_medium'); ?></th>
                                     <th><?php echo _l('opsdesk_status'); ?></th>
                                     <th><?php echo _l('opsdesk_packed_by'); ?></th>
                                     <?php if (!empty($global_view)) { ?>
@@ -118,9 +120,15 @@
                                         </td>
                                         <td><?php echo (int) $order['quantity']; ?></td>
                                         <td>
-                                            <span class="label label-default">
+                                            <span class="label label-tag tag-id-1">
                                                 <?php echo e(opsdesk_get_packing_type_label($order['packing_type'])); ?>
                                             </span>
+                                        </td>
+                                        <td>
+                                            <?php
+                                            $transport_medium = !empty($order['transport_medium_id']) ? opsdesk_get_transport_medium_label($order['transport_medium_id']) : null;
+                                            echo e($transport_medium ?: '—');
+                                            ?>
                                         </td>
                                         <td>
                                             <span class="label <?php echo opsdesk_get_order_status_class($order['status'] ?? ''); ?>">
@@ -133,81 +141,74 @@
                                         <?php } ?>
                                         <td><?php echo e(_dt($order['created_at'])); ?></td>
                                         <td>
-                                            <div class="opsdesk-order-actions">
-                                            <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>"
-                                                class="btn btn-default btn-sm">
-                                                <?php echo _l('opsdesk_view_order'); ?>
-                                            </a>
+                                            <div class="row-options">
+                                                <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>">
+                                                    <?php echo _l('opsdesk_view_order'); ?>
+                                                </a>
 
-                                            <?php
-                                            $is_own   = (int) $order['created_by'] === (int) get_staff_user_id();
-                                            $can_cancel = false;
-                                            if (!empty($can_edit) && in_array($order['status'], ['pending', 'in_progress', 'packed'], true)) {
-                                                $can_cancel = true;
-                                            } elseif ($is_own && $order['status'] === 'pending') {
-                                                $can_cancel = true;
-                                            }
-                                            if ($can_cancel) { ?>
-                                            <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order['id']); ?>"
-                                                class="btn btn-danger btn-sm _delete"
-                                                data-message="<?php echo e(_l('opsdesk_cancel_order_confirm')); ?>">
-                                                <?php echo _l('opsdesk_cancel_order'); ?>
-                                            </a>
-                                            <?php } ?>
-
-                                            <?php if (!empty($can_edit) && $order['status'] === 'pending') { ?>
-                                            <?php $accept_status = opsdesk_get_default_next_status($order['status']); ?>
-                                            <?php if ($accept_status !== '') { ?>
-                                            <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'inline-block opsdesk-accept-form']); ?>
-                                            <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
-                                            <input type="hidden" name="status" value="<?php echo e($accept_status); ?>">
-                                            <select name="packed_by" class="form-control input-sm opsdesk-accept-packer" style="display:inline-block;width:auto;max-width:180px;vertical-align:middle;" required>
-                                                <option value=""><?php echo _l('opsdesk_packed_by'); ?></option>
-                                                <?php foreach ($staff_members as $sm) { ?>
-                                                <option value="<?php echo (int) $sm['staffid']; ?>"><?php echo e($sm['full_name']); ?></option>
+                                                <?php
+                                                $is_own   = (int) $order['created_by'] === (int) get_staff_user_id();
+                                                $can_cancel = false;
+                                                if (!empty($can_edit) && in_array($order['status'], ['pending', 'in_progress', 'packed'], true)) {
+                                                    $can_cancel = true;
+                                                } elseif ($is_own && $order['status'] === 'pending') {
+                                                    $can_cancel = true;
+                                                }
+                                                if ($can_cancel) { ?>
+                                                | <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order['id']); ?>"
+                                                    class="_delete"
+                                                    data-message="<?php echo e(_l('opsdesk_cancel_order_confirm')); ?>">
+                                                    <?php echo _l('opsdesk_cancel_order'); ?>
+                                                </a>
                                                 <?php } ?>
-                                            </select>
-                                            <button type="submit" class="btn btn-info btn-sm opsdesk-accept-btn" disabled>
-                                                <?php echo _l('opsdesk_accept_order'); ?>
-                                            </button>
-                                            <?php echo form_close(); ?>
-                                            <?php } ?>
-                                            <?php } ?>
 
-                                            <?php
-                                            if (!empty($can_edit)) {
-                                                $status_options = opsdesk_get_order_statuses(true);
-                                                if (!empty($status_options)) { ?>
-                                            <div class="btn-group">
-                                                <button type="button" class="btn btn-default btn-sm dropdown-toggle"
-                                                    data-toggle="dropdown">
-                                                    <?php echo _l('opsdesk_update_status'); ?>
-                                                    <span class="caret"></span>
-                                                </button>
-                                                <ul class="dropdown-menu">
-                                                    <?php foreach ($status_options as $status) {
-                                                        $st = $status['status_key']; ?>
-                                                    <li>
-                                                        <?php echo form_open(admin_url('opsdesk/update_order_status')); ?>
-                                                        <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
-                                                        <input type="hidden" name="status" value="<?php echo e($st); ?>">
-                                                        <button type="submit" class="btn btn-link btn-block text-left">
-                                                            <?php echo e(opsdesk_get_order_status_label($st)); ?>
-                                                        </button>
-                                                        <?php echo form_close(); ?>
-                                                    </li>
+                                                <?php if (!empty($can_edit) && $order['status'] === 'pending') { ?>
+                                                <?php $accept_status = opsdesk_get_default_next_status($order['status']); ?>
+                                                <?php if ($accept_status !== '') { ?>
+                                                | <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'inline-block opsdesk-accept-form']); ?>
+                                                <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
+                                                <input type="hidden" name="status" value="<?php echo e($accept_status); ?>">
+                                                <select name="packed_by" class="form-control input-sm opsdesk-accept-packer" style="display:inline-block;width:auto;max-width:180px;vertical-align:middle;" required>
+                                                    <option value=""><?php echo _l('opsdesk_assigned_to'); ?></option>
+                                                    <?php foreach ($staff_members as $sm) { ?>
+                                                    <option value="<?php echo (int) $sm['staffid']; ?>"><?php echo e($sm['full_name']); ?></option>
                                                     <?php } ?>
-                                                </ul>
-                                            </div>
-                                            <?php }
-                                            } ?>
+                                                </select>
+                                                <button type="submit" class="btn btn-info btn-sm opsdesk-accept-btn button-margin-r-b" disabled>
+                                                    <?php echo _l('opsdesk_accept_order'); ?>
+                                                </button>
+                                                <?php echo form_close(); ?>
+                                                <?php } ?>
+                                                <?php } ?>
+
+                                                 <?php
+                                                 if (!empty($can_edit)) {
+                                                     $status_options = opsdesk_get_order_statuses(true);
+                                                     if (!empty($status_options)) {
+                                                 ?>
+                                                 | <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'inline-block']); ?>
+                                                    <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
+                                                    <select name="status" class="selectpicker" data-width="auto" onchange="if (this.value) this.form.submit();">
+                                                        <option value=""><?php echo _l('opsdesk_update_status'); ?></option>
+                                                        <?php foreach ($status_options as $status) {
+                                                            $st = $status['status_key'];
+                                                            $is_current = $order['status'] === $st;
+                                                        ?>
+                                                        <option value="<?php echo e($st); ?>" <?php echo $is_current ? 'disabled' : ''; ?>>
+                                                            <?php echo e(opsdesk_get_order_status_label($st)); ?>
+                                                        </option>
+                                                        <?php } ?>
+                                                    </select>
+                                                 <?php echo form_close(); ?>
+                                                 <?php }
+                                                 } ?>
                                             </div>
                                         </td>
                                     </tr>
                                     <?php } ?>
                                     <?php if (empty($orders)) { ?>
                                     <tr>
-                                        <td colspan="<?php echo !empty($global_view) ? 11 : 10; ?>" class="text-center text-muted">
+                                        <td colspan="<?php echo !empty($global_view) ? 12 : 11; ?>" class="text-center text-muted">
                                             <?php echo _l('opsdesk_no_orders'); ?>
                                         </td>
                                     </tr>

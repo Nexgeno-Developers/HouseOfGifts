@@ -374,6 +374,38 @@ function opsdesk_get_packing_type_label($type)
     return $types[$type] ?? $type;
 }
 
+function opsdesk_get_transport_mediums($active_only = false)
+{
+    $CI = &get_instance();
+
+    if (!isset($CI->db) || !$CI->db->table_exists(db_prefix() . 'opsdesk_transport_mediums')) {
+        return [];
+    }
+
+    $CI->db->order_by('display_order', 'ASC');
+    $CI->db->order_by('id', 'ASC');
+
+    if ($active_only) {
+        $CI->db->where('is_active', 1);
+    }
+
+    $rows = $CI->db->get(db_prefix() . 'opsdesk_transport_mediums')->result_array();
+
+    $mediums = [];
+    foreach ($rows as $row) {
+        $mediums[trim((string) $row['type_key'])] = trim((string) $row['name']);
+    }
+
+    return $mediums;
+}
+
+function opsdesk_get_transport_medium_label($type_key)
+{
+    $mediums = opsdesk_get_transport_mediums(true);
+
+    return $mediums[$type_key] ?? $type_key;
+}
+
 function opsdesk_get_order_statuses($active_only = true)
 {
     $CI = &get_instance();
@@ -442,23 +474,19 @@ function opsdesk_get_order_status_class($status)
 {
     $status_key = strtolower(trim((string) $status));
     if ($status_key === '') {
-        return 'label-default';
+        return 'label-tag tag-id-1';
     }
 
-    $statuses = opsdesk_get_order_statuses(true);
-    $palette = ['label-warning', 'label-info', 'label-primary', 'label-default', 'label-success', 'label-danger'];
+    $map = [
+        'pending'       => 'label-tag tag-id-1 opsdesk-status-pending',
+        'in_progress'   => 'label-tag tag-id-1 opsdesk-status-in_progress',
+        'packed'        => 'label-tag tag-id-1 opsdesk-status-packed',
+        'shipped'       => 'label-tag tag-id-1 opsdesk-status-shipped',
+        'completed'     => 'label-tag tag-id-1 opsdesk-status-completed',
+        'cancelled'     => 'label-tag tag-id-1 opsdesk-status-cancelled',
+    ];
 
-    foreach ($statuses as $item) {
-        if (strtolower((string) $item['status_key']) === $status_key) {
-            $display_order = isset($item['display_order']) && (int) $item['display_order'] > 0
-                ? (int) $item['display_order']
-                : 1;
-
-            return $palette[($display_order - 1) % count($palette)] ?? 'label-default';
-        }
-    }
-
-    return 'label-default';
+    return $map[$status_key] ?? 'label-tag tag-id-1';
 }
 
 /**
@@ -482,7 +510,7 @@ function opsdesk_get_order_status_label($status)
 
     $translated = _l('opsdesk_order_status_' . $status_key);
 
-    return $status_key;
+    return $translated;
 }
 
 /**
@@ -733,11 +761,12 @@ function opsdesk_get_priority_label($priority)
  */
 function opsdesk_get_priority_badge($priority)
 {
-    if ((int) $priority !== 1) {
-        return '';
+    $priority = (int) $priority;
+    if ($priority === 1) {
+        return '<span class="label label-tag tag-id-1 opsdesk-status-shipped">' . e(_l('opsdesk_priority_high_badge')) . '</span>';
     }
 
-    return '<span class="label label-danger">' . e(_l('opsdesk_priority_high_badge')) . '</span>';
+    return '<span class="label label-tag tag-id-1 opsdesk-status-pending">' . e(_l('opsdesk_priority_normal')) . '</span>';
 }
 
 /**

@@ -1,0 +1,38 @@
+/* OpsDesk — order form view styles */
+
+.horizontal-scrollable-tabs {
+    position: relative;
+}
+
+.horizontal-scrollable-tabs .scroller {
+    position: absolute;
+    top: 0;
+    z-index: 10;
+    cursor: pointer;
+    padding: 4px 8px;
+    background: #fff;
+}
+
+.horizontal-scrollable-tabs .scroller.arrow-left {
+    left: 0;
+}
+
+.horizontal-scrollable-tabs .scroller.arrow-right {
+    right: 0;
+}
+
+.nav-tabs-horizontal {
+    margin-bottom: 15px;
+}
+
+.nav-tabs-horizontal > li {
+    float: left;
+}
+
+.nav-tabs-horizontal > li > a {
+    padding: 8px 15px;
+}
+
+.ht-dialog-width {
+    width: 76%;
+}

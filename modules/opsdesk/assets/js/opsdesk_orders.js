@@ -1,7 +1,6 @@
 /**
  * OpsDesk — Order form: stock check, substitutions, submit guard.
  */
-console.log('opsdesk_orders.js file loaded');
 
 // Shared helper (global scope) so every IIFE in this file can read the CSRF
 // token. Defined once here; do not redeclare inside an IIFE.
@@ -24,11 +23,9 @@ function getCsrfPostData() {
 }
 
 (function ($) {
-  "use strict";
+   "use strict";
 
-  console.log('opsdesk_orders.js IIFE executing, jQuery available:', typeof $ !== 'undefined');
-
-  var debounceTimer = null;
+   var debounceTimer = null;
   var overrides = {
     substitutions: {},
     removed: [],
@@ -87,20 +84,15 @@ function getCsrfPostData() {
   }
 
   function fetchStockCheck() {
-    console.log('fetchStockCheck() START');
     var comboId = $("#opsdesk_order_combo_id").val();
     var qty = parseFloat($("#opsdesk_order_qty").val()) || 0;
 
-    console.log('Combo ID:', comboId, 'Qty:', qty);
-
     if (!comboId || qty < 1) {
-      console.log('Early exit: comboId or qty invalid');
       resetComponentsTable();
       updateSubmitState(false);
       return;
     }
 
-    console.log('Validation passed, preparing AJAX request');
     syncOverridesField();
     $("#opsdesk_order_loading").removeClass("hide");
     $("#opsdesk_order_alert").addClass("hide");
@@ -111,52 +103,37 @@ function getCsrfPostData() {
       order_overrides: JSON.stringify(overrides),
     };
 
-    console.log('CSRF data:', getCsrfPostData());
     $.extend(postData, getCsrfPostData());
-
-    console.log('POST data:', postData);
-    console.log('AJAX URL:', opsdeskOrderStockUrl);
 
     $.post(opsdeskOrderStockUrl, postData)
       .done(function (response) {
-        console.log('AJAX success response:', response);
         $("#opsdesk_order_loading").addClass("hide");
 
         if (typeof response === "string") {
           try {
             response = JSON.parse(response);
           } catch (e) {
-            console.error('OpsDesk stock check JSON parse error:', e, response);
             showAlert("danger", opsdeskOrderLang.error);
             return;
           }
         }
 
         if (!response.success) {
-          console.error('OpsDesk stock check failed:', response);
           showAlert("danger", response.message || opsdeskOrderLang.error);
           return;
         }
 
-        console.log('Rendering components:', response.data);
         renderComponents(response.data);
       })
       .fail(function (xhr, status, error) {
-        console.error('AJAX request failed');
-        console.error('  Status:', status);
-        console.error('  Error:', error);
-        console.error('  XHR Status Code:', xhr.status);
-        console.error('  XHR Response Text:', xhr.responseText);
         $("#opsdesk_order_loading").addClass("hide");
         showAlert("danger", opsdeskOrderLang.error);
       });
   }
 
   function debouncedStockCheck() {
-    console.log('debouncedStockCheck() called');
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(function() {
-      console.log('debouncedStockCheck() timeout fired, calling fetchStockCheck()');
       fetchStockCheck();
     }, 400);
   }
@@ -178,7 +155,6 @@ function getCsrfPostData() {
   }
 
   function renderComponents(data) {
-    console.log('renderComponents() called with data:', data);
     var components = data.components || [];
     var html = "";
     var insufficientCount = 0;
@@ -268,9 +244,10 @@ function getCsrfPostData() {
 
   function updateSubmitState(enabled) {
     var packing = $("#opsdesk_packing_type").val();
+    var transportMedium = $("#opsdesk_transport_medium").val();
     $("#opsdesk_submit_order").prop(
       "disabled",
-      !(enabled && packing),
+      !(enabled && packing && transportMedium),
     );
   }
 
@@ -360,44 +337,31 @@ function getCsrfPostData() {
     // This IIFE is only for the order *form* page. The order *detail* page
     // reuses this file but does not define the form globals.
     if (typeof opsdeskOrderStockUrl === "undefined") {
-      console.log('OpsDesk order form globals missing — skipping form init (detail page).');
       return;
     }
-    console.log('OpsDesk order form initializing...');
-    console.log('opsdeskOrderStockUrl:', opsdeskOrderStockUrl);
-    console.log('opsdeskOrderLang:', opsdeskOrderLang);
-
-    var $comboSelect = $("#opsdesk_order_combo_id");
-    console.log('Combo select element found:', $comboSelect.length);
-    console.log('Combo select element:', $comboSelect);
 
     applyPrefill();
 
     if ($("#opsdesk_order_combo_id").val()) {
-      console.log('Pre-filled combo ID detected, fetching stock...');
       fetchStockCheck();
     }
 
     $("#opsdesk_order_combo_id").on("change changed.bs.select", function () {
-      console.log('Combo selection changed event fired');
       resetOverrides();
       debouncedStockCheck();
     });
 
-    // Direct jQuery change handler as fallback
     $comboSelect.on("change", function () {
-      console.log('Direct change handler: combo changed to', $(this).val());
+      // syncCityFromSelect is called via changed.bs.select in initCustomerSearch
     });
-
-    // Bootstrap-select event handler
-    if ($comboSelect.data('selectpicker')) {
-      $comboSelect.on('changed.bs.select', function () {
-        console.log('Bootstrap-select changed event');
-      });
-    }
 
     $("#opsdesk_order_qty").on("input change", debouncedStockCheck);
     $("#opsdesk_packing_type").on("change", function () {
+      var stockOk = $("#opsdesk_order_summary").hasClass("alert-success");
+      updateSubmitState(stockOk);
+    });
+
+    $("#opsdesk_transport_medium").on("change", function () {
       var stockOk = $("#opsdesk_order_summary").hasClass("alert-success");
       updateSubmitState(stockOk);
     });
@@ -418,14 +382,17 @@ function getCsrfPostData() {
         $("#opsdesk_bill_file").focus();
         return false;
       }
+      if (!$("#opsdesk_transport_medium").val()) {
+        alert(opsdeskOrderLang.transportMediumRequired);
+        $("#opsdesk_transport_medium").focus();
+        return false;
+      }
       return true;
     });
 
     initCustomerSearch();
 
-    console.log('OpsDesk order form initialization complete');
-  });
-})(jQuery);
+}(jQuery);
 
 /**
  * OpsDesk — Order detail: inline priority change.
@@ -491,6 +458,10 @@ function getCsrfPostData() {
         });
     });
   });
+});
+
+(function ($) {
+  "use strict";
 
   /**
    * OpsDesk — Order detail: standalone assignment (packer) save.

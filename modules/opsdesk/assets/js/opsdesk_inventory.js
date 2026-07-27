@@ -551,28 +551,28 @@
       var allItems = $("#opsdesk_availability_body tr:not(#opsdesk_empty_row)");
       var need = $("#opsdesk_order_quantity").val();
       var allSufficient = false;
-      allItems.each(function () {
-        var $row = $(this);
-        console.log(allSufficient, $row.find("td:eq(0)").html());
-        if ($row.find("td:eq(4) .label-danger").length > 0) {
-          alert(
-            "Inventory insufficient for one or more items. Please adjust the quantities.",
-          );
-          return (allSufficient = false);
-        } else {
-          if (
-            parseInt($row.find("td:eq(2)").text(), 10) >=
-            $row.find("td:eq(3) input").val() * need
-          ) {
-            allSufficient = true;
-          } else {
+        allItems.each(function () {
+          var $row = $(this);
+          var allSufficient = true;
+          if ($row.find("td:eq(4) .label-danger").length > 0) {
             alert(
               "Inventory insufficient for one or more items. Please adjust the quantities.",
             );
             return (allSufficient = false);
+          } else {
+            if (
+              parseInt($row.find("td:eq(2)").text(), 10) >=
+              $row.find("td:eq(3) input").val() * need
+            ) {
+              allSufficient = true;
+            } else {
+              alert(
+                "Inventory insufficient for one or more items. Please adjust the quantities.",
+              );
+              return (allSufficient = false);
+            }
           }
-        }
-      });
+        });
       if (allSufficient) {
         alert(
           "Inventory is sufficient for all items. You can proceed with the order.",

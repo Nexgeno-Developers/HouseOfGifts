@@ -11,9 +11,10 @@ class Opsdesk extends AdminController
         $this->load->model('opsdesk/opsdesk_combos_model');
         $this->load->model('opsdesk/opsdesk_inventory_model');
         $this->load->model('opsdesk/opsdesk_orders_model');
-        $this->load->model('opsdesk/opsdesk_product_statuses_model');
-        $this->load->model('opsdesk/opsdesk_packing_types_model');
-    }
+$this->load->model('opsdesk/opsdesk_product_statuses_model');
+         $this->load->model('opsdesk/opsdesk_packing_types_model');
+         $this->load->model('opsdesk/opsdesk_transport_mediums_model');
+     }
 
     /**
      * Default route — redirect to inventory viewer.
@@ -54,7 +55,7 @@ class Opsdesk extends AdminController
 
         $data['group']  = $group;
         $data['title']  = _l('opsdesk_settings');
-        $data['tabs']   = ['product_statuses', 'packing_types'];
+        $data['tabs']   = ['product_statuses', 'packing_types', 'transport_mediums'];
 
         // Only allow known tabs; fall back to the default to avoid loading a
         // non-existent view via a crafted URL segment.
@@ -69,6 +70,10 @@ class Opsdesk extends AdminController
 
         if ($group === 'packing_types') {
             $data['packing_types'] = $this->opsdesk_packing_types_model->get();
+        }
+
+        if ($group === 'transport_mediums') {
+            $data['transport_mediums'] = $this->opsdesk_transport_mediums_model->get();
         }
 
         $data['tab_view'] = 'includes/' . $group;
@@ -223,6 +228,78 @@ class Opsdesk extends AdminController
         }
 
         redirect(admin_url('opsdesk/settings/packing_types'));
+    }
+
+    /**
+     * AJAX/POST: save (add/update) a transport medium from the Settings tab.
+     */
+    public function transport_medium_setting($id = '')
+    {
+        if (!opsdesk_can_manage_settings()) {
+            access_denied('opsdesk');
+        }
+
+        if ($this->input->post()) {
+            $data = $this->input->post();
+            $data['is_active']    = isset($data['is_active']) ? 1 : 0;
+            $data['display_order'] = (int) ($data['display_order'] ?? 0);
+
+            if (!$this->input->post('id')) {
+                $mess = $this->opsdesk_transport_mediums_model->add($data);
+
+                if (is_numeric($mess) && (int) $mess > 0) {
+                    set_alert('success', _l('added_successfully', _l('opsdesk_transport_medium')));
+                } elseif ($mess === 'duplicate_order') {
+                    set_alert('warning', _l('opsdesk_transport_medium_display_order_in_use'));
+                } elseif ($mess === 'duplicate_key') {
+                    set_alert('warning', _l('opsdesk_transport_medium_key_in_use'));
+                } else {
+                    set_alert('warning', _l('opsdesk_problem_adding'));
+                }
+
+                redirect(admin_url('opsdesk/settings/transport_mediums'));
+            }
+
+            $pid   = (int) $data['id'];
+            unset($data['id']);
+            $success = $this->opsdesk_transport_mediums_model->update($data, $pid);
+
+            if ($success === true) {
+                set_alert('success', _l('updated_successfully', _l('opsdesk_transport_medium')));
+            } elseif ($success === 'duplicate_order') {
+                set_alert('warning', _l('opsdesk_transport_medium_display_order_in_use'));
+            } elseif ($success === 'duplicate_key') {
+                set_alert('warning', _l('opsdesk_transport_medium_key_in_use'));
+            } else {
+                set_alert('warning', _l('opsdesk_problem_updating'));
+            }
+
+            redirect(admin_url('opsdesk/settings/transport_mediums'));
+        }
+    }
+
+    /**
+     * Delete a transport medium.
+     */
+    public function delete_transport_medium($id)
+    {
+        if (!opsdesk_can_manage_settings()) {
+            access_denied('opsdesk');
+        }
+
+        if (!$id) {
+            redirect(admin_url('opsdesk/settings/transport_mediums'));
+        }
+
+        $response = $this->opsdesk_transport_mediums_model->delete($id);
+
+        if ($response) {
+            set_alert('success', _l('deleted', _l('opsdesk_transport_medium')));
+        } else {
+            set_alert('warning', _l('opsdesk_problem_deleting'));
+        }
+
+        redirect(admin_url('opsdesk/settings/transport_mediums'));
     }
 
     /**
@@ -690,6 +767,13 @@ class Opsdesk extends AdminController
             'exclude_variation_parents' => true,
         ]);
         $data['packing_types'] = opsdesk_get_packing_types();
+        // Get transport mediums for dropdown
+        $transport_mediums = $this->opsdesk_transport_mediums_model->get();
+        $transport_mediums_dropdown = [];
+        foreach ($transport_mediums as $tm) {
+            $transport_mediums_dropdown[$tm['type_key']] = $tm['name'];
+        }
+        $data['transport_mediums'] = $transport_mediums_dropdown;
         $data['staff_members'] = opsdesk_get_staff_members();
         $data['prefill']       = $prefill;
         $data['prefill_customer_name'] = '';
@@ -762,9 +846,11 @@ class Opsdesk extends AdminController
         $packing_type = trim($this->input->post('packing_type') ?? '');
         $priority     = (int) $this->input->post('priority');
         $priority     = in_array($priority, [0, 1], true) ? $priority : 0;
+        $transport_medium_id = trim($this->input->post('transport_medium_id') ?? '');
         $packing_types = array_keys(opsdesk_get_packing_types());
+        $transport_mediums = array_keys(opsdesk_get_transport_mediums(true));
 
-        if ($combo_id <= 0 || $quantity < 1 || !in_array($packing_type, $packing_types, true)) {
+        if ($combo_id <= 0 || $quantity < 1 || !in_array($packing_type, $packing_types, true) || !in_array($transport_medium_id, $transport_mediums, true)) {
             set_alert('warning', _l('opsdesk_invalid_request'));
             redirect(admin_url('opsdesk/order'));
         }
@@ -818,6 +904,7 @@ class Opsdesk extends AdminController
             'customer_city' => $customer_city,
             'quantity'     => $quantity,
             'packing_type' => $packing_type,
+            'transport_medium_id' => $transport_medium_id,
             'notes'        => trim($this->input->post('notes') ?? ''),
             'bill_file'    => $bill_upload['file'],
             'payment_file' => $payment_file,
@@ -857,17 +944,55 @@ class Opsdesk extends AdminController
         $new_status = trim($this->input->post('status') ?? '');
         $extra      = [];
 
-        $assignment_error = '';
-        if ($new_status === 'in_progress' && !(int) $this->input->post('packed_by')) {
-            $assignment_error = _l('opsdesk_packed_by_required');
+        // Handle file uploads for completion
+        if ($new_status === 'completed') {
+            // LR copy upload
+            if (isset($_FILES['lr_copy']) && !empty($_FILES['lr_copy']['name'])) {
+                $upload = opsdesk_handle_upload('lr_copy');
+                if (!$upload['success']) {
+                    if ($this->input->is_ajax_request()) {
+                        echo json_encode(['success' => false, 'message' => _l('opsdesk_upload_failed') . ' ' . $upload['message']]);
+                        die;
+                    }
+                    set_alert('warning', _l('opsdesk_upload_failed') . ' ' . $upload['message']);
+                    redirect(admin_url('opsdesk/order/' . $order_id));
+                }
+                $extra['lr_copy'] = $upload['file'];
+            }
+
+            // Carton photo upload
+            if (isset($_FILES['carton_photo']) && !empty($_FILES['carton_photo']['name'])) {
+                $upload = opsdesk_handle_upload('carton_photo');
+                if (!$upload['success']) {
+                    if ($this->input->is_ajax_request()) {
+                        echo json_encode(['success' => false, 'message' => _l('opsdesk_upload_failed') . ' ' . $upload['message']]);
+                        die;
+                    }
+                    set_alert('warning', _l('opsdesk_upload_failed') . ' ' . $upload['message']);
+                    redirect(admin_url('opsdesk/order/' . $order_id));
+                }
+                $extra['carton_photo'] = $upload['file'];
+            }
+
+            // Carton count
+            if ($this->input->post('carton_count')) {
+                $extra['carton_count'] = (int) $this->input->post('carton_count');
+            }
+
+            // Counted by
+            if ($this->input->post('count_by')) {
+                $extra['count_by'] = (int) $this->input->post('count_by');
+            }
         }
 
-        if ($assignment_error !== '') {
+        // Accepting order (pending -> in_progress) requires packed_by
+        if ($new_status === 'in_progress' && !(int) $this->input->post('packed_by')) {
+            $error = _l('opsdesk_packed_by_required');
             if ($this->input->is_ajax_request()) {
-                echo json_encode(['success' => false, 'message' => $assignment_error]);
+                echo json_encode(['success' => false, 'message' => $error]);
                 die;
             }
-            set_alert('warning', $assignment_error);
+            set_alert('warning', $error);
             redirect(admin_url('opsdesk/order/' . $order_id));
         }
 
@@ -957,6 +1082,43 @@ class Opsdesk extends AdminController
         }
 
         redirect(admin_url('opsdesk/order/' . $id));
+    }
+
+    /**
+     * POST: upload / replace the payment_file for an order.
+     */
+    public function upload_payment_file($order_id = '')
+    {
+        if (!opsdesk_can_edit_orders()) {
+            access_denied('opsdesk_orders');
+        }
+
+        if (!is_numeric($order_id)) {
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        $order = $this->opsdesk_orders_model->get((int) $order_id);
+        if (!$order) {
+            set_alert('warning', _l('opsdesk_order_not_found'));
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        if (empty($_FILES['payment_file']) || empty($_FILES['payment_file']['name'])) {
+            set_alert('warning', _l('opsdesk_upload_failed'));
+            redirect(admin_url('opsdesk/order/' . $order_id));
+        }
+
+        $upload = opsdesk_handle_upload('payment_file');
+        if (!$upload['success']) {
+            set_alert('warning', _l('opsdesk_upload_failed') . ' ' . $upload['message']);
+            redirect(admin_url('opsdesk/order/' . $order_id));
+        }
+
+        // Replace existing payment_file if present
+        $this->opsdesk_orders_model->update_payment_file((int) $order_id, $upload['file']);
+
+        set_alert('success', _l('opsdesk_file_uploaded'));
+        redirect(admin_url('opsdesk/order/' . $order_id));
     }
 
     /**

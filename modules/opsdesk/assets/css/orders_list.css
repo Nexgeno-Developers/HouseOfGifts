@@ -1,0 +1,29 @@
+/* OpsDesk — orders list view styles */
+
+.row-options a {
+    margin-right: 8px;
+    color: #555;
+}
+
+.row-options a:hover {
+    color: #333;
+    text-decoration: underline;
+}
+
+.label-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.tag-id-1 {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.button-margin-r-b {
+    margin-right: 7px;
+    margin-bottom: 4px;
+}

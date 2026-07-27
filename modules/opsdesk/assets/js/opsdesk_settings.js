@@ -114,8 +114,63 @@
     window.new_opsdesk_packing_type = new_opsdesk_packing_type;
     window.edit_opsdesk_packing_type = edit_opsdesk_packing_type;
 
+    function new_opsdesk_transport_medium() {
+        $("#opsdesk_transport_medium_modal").modal("show");
+        $("#opsdesk_transport_medium_setting").trigger("reset");
+        $("#opsdesk_transport_medium_id_t").html("");
+        $(".edit-title").hide();
+        $(".add-title").show();
+        $('#opsdesk_transport_medium_modal input[name="is_active"]').prop("checked", true);
+    }
+
+    function edit_opsdesk_transport_medium(invoker, id) {
+        $("#opsdesk_transport_medium_id_t").html('<input type="hidden" name="id" value="' + id + '">');
+        $("#opsdesk_transport_medium_modal input[name=\"type_key\"]").val($(invoker).data("type_key"));
+        $("#opsdesk_transport_medium_modal input[name=\"name\"]").val($(invoker).data("name"));
+        $("#opsdesk_transport_medium_modal textarea[name=\"description\"]").val($(invoker).data("description"));
+        $("#opsdesk_transport_medium_modal input[name=\"display_order\"]").val($(invoker).data("display_order"));
+        $("#opsdesk_transport_medium_modal input[name=\"is_active\"]").prop("checked", $(invoker).data("is_active") == "1");
+        $(".add-title").hide();
+        $(".edit-title").show();
+        $("#opsdesk_transport_medium_modal").modal("show");
+    }
+
+    function bindTransportMediumForm() {
+        $("#opsdesk_transport_medium_setting").on("submit", function (e) {
+            var orderValue = parseInt($('#opsdesk_transport_medium_modal input[name="display_order"]').val(), 10);
+            var currentId = parseInt($("#opsdesk_transport_medium_id_t input[name=\"id\"]").val(), 10) || 0;
+            var keyValue = ($('#opsdesk_transport_medium_modal input[name="type_key"]').val() || "").trim();
+
+            if (!isNaN(orderValue)) {
+                var alreadyUsedOrder = existing_opsdesk_transport_medium_orders.some(function (item) {
+                    return item.order === orderValue && item.id !== currentId;
+                });
+
+                if (alreadyUsedOrder) {
+                    e.preventDefault();
+                    alert(opsdeskTransportMediumLang.displayOrderInUse);
+                    return false;
+                }
+            }
+
+            var alreadyUsedKey = existing_opsdesk_transport_medium_keys.some(function (item) {
+                return item.key.toLowerCase() === keyValue.toLowerCase() && item.id !== currentId;
+            });
+
+            if (keyValue && alreadyUsedKey) {
+                e.preventDefault();
+                alert(opsdeskTransportMediumLang.keyInUse);
+                return false;
+            }
+        });
+    }
+
+    window.new_opsdesk_transport_medium = new_opsdesk_transport_medium;
+    window.edit_opsdesk_transport_medium = edit_opsdesk_transport_medium;
+
     $(function () {
         bindProductStatusForm();
         bindPackingTypeForm();
+        bindTransportMediumForm();
     });
 })(jQuery);

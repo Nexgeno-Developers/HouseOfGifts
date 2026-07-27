@@ -40,7 +40,102 @@
     font-weight: 600;
 }
 
-/* ---- Mobile-friendly Operations view ---- */
+/* ---- Warehouse-inspired utility classes ---- */
+
+/* Section dividers */
+.hr-panel-heading {
+    border-top: 1px solid #e8e8e8;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* Colored section headings */
+.h4-color {
+    color: #d8341b;
+}
+
+.hr-color {
+    margin-top: 10px;
+    border-bottom: 0.5px solid;
+    color: #d8341b;
+}
+
+/* Spacing utilities */
+.mtop5 { margin-top: 5px; }
+.mtop10 { margin-top: 10px; }
+.mtop15 { margin-top: 15px; }
+.mtop20 { margin-top: 20px; }
+.mbot5 { margin-bottom: 5px; }
+.mbot10 { margin-bottom: 10px; }
+.mbot15 { margin-bottom: 15px; }
+.mright15 { margin-right: 15px; }
+.mleft5 { margin-left: 5px; }
+
+/* Row and button spacing */
+.row-margin-bottom { margin-bottom: 4px; }
+.button-margin-r-b { margin-right: 7px; margin-bottom: 4px; }
+
+/* Panel padding override */
+.panel-padding { padding-right: 0; padding-left: 0; }
+
+/* Table margin */
+.table-margintop { margin-top: 0; }
+
+/* Modal width */
+.ht-dialog-width { width: 76%; }
+
+/* Float utilities */
+.f-left { float: left; }
+.f-right { float: right; }
+
+/* Display block */
+.display-block { display: block; }
+
+/* Colored label tabs */
+.label-tab1 { border: 1px solid #84C529 !important; color: #84C529 !important; }
+.label-tab2 { border: 1px solid #28B8DA !important; color: #28B8DA !important; }
+.label-tab3 { border: 1px solid #da2828 !important; color: #da2828 !important; }
+.label-tab4 { border: 1px solid #ff9800 !important; color: #ff9800 !important; }
+
+/* Tag badges */
+.label-tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; }
+.tag-id-1 { background: #e8f5e9; color: #2e7d32; }
+
+/* Row options */
+.row-options a { margin-right: 8px; color: #555; }
+.row-options a:hover { color: #333; text-decoration: underline; }
+
+/* Card pattern */
+.card1 {
+    border-radius: 5px;
+    box-shadow: 0 1px 2.94px 0.06px rgba(4, 26, 55, 0.16);
+    border: none;
+    margin-bottom: 30px;
+    transition: all 0.3s ease-in-out;
+}
+.card .card-block { padding: 20px; }
+
+/* Settings table */
+.setting-handsome-table { width: 70%; }
+
+/* Tabs */
+.horizontal-scrollable-tabs { position: relative; }
+.horizontal-scrollable-tabs .scroller { position: absolute; top: 0; z-index: 10; cursor: pointer; padding: 4px 8px; background: #fff; }
+.horizontal-scrollable-tabs .scroller.arrow-left { left: 0; }
+.horizontal-scrollable-tabs .scroller.arrow-right { right: 0; }
+.nav-tabs-horizontal { margin-bottom: 15px; }
+.nav-tabs-horizontal > li { float: left; }
+.nav-tabs-horizontal > li > a { padding: 8px 15px; }
+
+/* Status label colors */
+.opsdesk-status-pending { color: #0259d1; }
+.opsdesk-status-in_progress { color: #225bd8; }
+.opsdesk-status-packed { color: #f57c00; }
+.opsdesk-status-shipped { color: #afb42b; }
+.opsdesk-status-completed { color: #2e7d32; }
+.opsdesk-status-cancelled { color: #e7515e; }
+
+/* Mobile-friendly Operations view */
 @media (max-width: 767px) {
     #opsdesk_order_components,
     #opsdesk_availability_table,
@@ -94,4 +189,8 @@
 .opsdesk-stack-actions .btn,
 .opsdesk-stack-actions form {
     margin-bottom: 8px;
+}
+
+.opsdesk-payment-upload-block .label {
+    font-weight: 600;
 }

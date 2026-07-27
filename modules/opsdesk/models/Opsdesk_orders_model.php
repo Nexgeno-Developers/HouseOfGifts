@@ -16,6 +16,7 @@ class Opsdesk_orders_model extends App_Model
         $CI->load->helper(OPSDESK_MODULE_NAME . '/opsdesk');
         $this->load->model('opsdesk/opsdesk_combos_model');
         $this->load->model('opsdesk/opsdesk_inventory_model');
+        $this->load->model('opsdesk/opsdesk_transport_mediums_model');
 
         $prefix = db_prefix();
         $this->table_orders    = $prefix . 'opsdesk_orders';
@@ -71,14 +72,6 @@ class Opsdesk_orders_model extends App_Model
             $this->db->where($this->table_orders . '.priority', (int) $priority);
         }
 
-        // FR-020.5: High priority orders first, then newest.
-        $this->db->order_by($this->table_orders . '.priority', 'DESC');
-        $priority = $options['priority'] ?? null;
-        if ($priority !== null && $priority !== '' && $priority !== 'all') {
-            $this->db->where($this->table_orders . '.priority', (int) $priority);
-        }
-
-        // High priority (1) first, then newest.
         $this->db->order_by($this->table_orders . '.priority', 'DESC');
         $this->db->order_by($this->table_orders . '.created_at', 'DESC');
 
@@ -478,8 +471,39 @@ class Opsdesk_orders_model extends App_Model
             return $this->cancel_order($order_id, $staff_id, true);
         }
 
+        // Allow any status transition (not just forward). Validation for
+        // specific statuses (e.g., completed) is handled below.
         if (!$this->is_valid_transition($current, $new_status)) {
             return ['success' => false, 'message' => _l('opsdesk_invalid_status_transition')];
+        }
+
+        // Validate completion requirements.
+        if ($new_status === 'completed') {
+            if (empty($order->payment_file)) {
+                return ['success' => false, 'message' => _l('opsdesk_payment_required_for_completion')];
+            }
+            // lr_copy, carton_photo, carton_count are required for completion.
+            // Allow completion if the order already has the file, or the user
+            // uploads one in this submission.
+            if (empty($order->lr_copy) && empty($extra['lr_copy'])) {
+                return ['success' => false, 'message' => _l('opsdesk_lr_copy_required_for_completion')];
+            }
+            if (empty($order->carton_photo) && empty($extra['carton_photo'])) {
+                return ['success' => false, 'message' => _l('opsdesk_carton_photo_required_for_completion')];
+            }
+            if (empty($order->carton_count) && empty($extra['carton_count'])) {
+                return ['success' => false, 'message' => _l('opsdesk_carton_count_required_for_completion')];
+            }
+            if (empty($extra['count_by'])) {
+                return ['success' => false, 'message' => _l('opsdesk_count_by_required_for_completion')];
+            }
+        }
+
+        // Validate acceptance (pending -> in_progress) requires packed_by
+        if ($current === 'pending' && $new_status === 'in_progress') {
+            if (empty($extra['packed_by'])) {
+                return ['success' => false, 'message' => _l('opsdesk_packed_by_required')];
+            }
         }
 
         $this->db->trans_begin();
@@ -519,6 +543,19 @@ class Opsdesk_orders_model extends App_Model
 
             if (!empty($extra['count_by'])) {
                 $update['count_by'] = (int) $extra['count_by'];
+            }
+
+            // Handle completion fields
+            if ($new_status === 'completed') {
+                if (!empty($extra['lr_copy'])) {
+                    $update['lr_copy'] = $extra['lr_copy'];
+                }
+                if (!empty($extra['carton_photo'])) {
+                    $update['carton_photo'] = $extra['carton_photo'];
+                }
+                if (!empty($extra['carton_count'])) {
+                    $update['carton_count'] = (int) $extra['carton_count'];
+                }
             }
 
             $this->db->where('id', (int) $order_id);
@@ -635,6 +672,35 @@ class Opsdesk_orders_model extends App_Model
         }
 
         return ['success' => true];
+    }
+
+    /**
+     * Update the payment_file for an order.
+     *
+     * @param int    $order_id
+     * @param string $file_name
+     * @return bool
+     */
+    public function update_payment_file($order_id, $file_name)
+    {
+        if (!is_numeric($order_id) || empty($file_name)) {
+            return false;
+        }
+
+        $this->db->where('id', (int) $order_id);
+        $this->db->update($this->table_orders, [
+            'payment_file' => $file_name,
+            'updated_by'   => get_staff_user_id(),
+            'updated_at'   => date('Y-m-d H:i:s'),
+        ]);
+
+        if ($this->db->affected_rows() > 0) {
+            log_activity('OpsDesk Order Payment File Updated [ID:' . $order_id . ']');
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

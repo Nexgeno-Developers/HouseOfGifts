@@ -32,3 +32,250 @@
 .card .card-block {
     padding: 20px;
 }
+
+/* ---- Order Detail Redesign ---- */
+
+/* Visual Stepper */
+.opsdesk-stepper {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+    padding: 0;
+    margin-bottom: 24px;
+}
+
+.stepper-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    width: max-content;
+    max-width: max-content;
+    flex: 0 0 auto;
+}
+
+.stepper-step:last-child {
+    flex: 0 0 auto;
+}
+
+.stepper-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #e8e8e8;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    z-index: 2;
+    border: 2px solid #e8e8e8;
+}
+
+.stepper-step.stepper-completed .stepper-icon {
+    background: #2e7d32;
+    border-color: #2e7d32;
+    color: #fff;
+}
+
+.stepper-step.stepper-current .stepper-icon {
+    background: #fff;
+    border-color: #0259d1;
+    color: #0259d1;
+}
+
+.stepper-step.stepper-skipped .stepper-icon {
+    background: #f5f5f5;
+    border-color: #e0e0e0;
+    color: #bbb;
+}
+
+.stepper-current-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #0259d1;
+    display: block;
+}
+
+.stepper-number {
+    font-size: 11px;
+    line-height: 1;
+}
+
+.stepper-label {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #555;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.stepper-step.stepper-completed .stepper-label {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.stepper-step.stepper-current .stepper-label {
+    color: #0259d1;
+    font-weight: 600;
+}
+
+.stepper-line {
+    position: absolute;
+    top: 13px;
+    left: 50%;
+    width: 200px;
+    max-width: 30vw;
+    height: 2px;
+    background: #e8e8e8;
+    z-index: 1;
+    transform: translateX(50%);
+}
+
+.stepper-step.stepper-completed .stepper-line {
+    background: #2e7d32;
+}
+
+.stepper-step:last-child .stepper-line {
+    display: none;
+}
+
+.stepper-step.stepper-skipped .stepper-line {
+    background: #e8e8e8;
+}
+
+/* Order Information Meta Grid */
+.opsdesk-meta-item {
+    margin-bottom: 12px;
+}
+
+.opsdesk-meta-label {
+    display: block;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.opsdesk-meta-value {
+    display: block;
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+}
+
+/* Status History Timeline */
+.opsdesk-timeline {
+    position: relative;
+    padding-left: 20px;
+}
+
+.opsdesk-timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: #e8e8e8;
+}
+
+.opsdesk-timeline-item {
+    position: relative;
+    padding-bottom: 18px;
+}
+
+.opsdesk-timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.opsdesk-timeline-marker {
+    position: absolute;
+    left: -20px;
+    top: 4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #0259d1;
+    z-index: 2;
+}
+
+.opsdesk-timeline-item:first-child .opsdesk-timeline-marker {
+    border-color: #2e7d32;
+    background: #2e7d32;
+}
+
+.opsdesk-timeline-content {
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+/* Documents & Attachments */
+.opsdesk-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.opsdesk-attachment-item {
+    padding: 10px 12px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+}
+
+.opsdesk-attachment-item .label {
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.opsdesk-file-link {
+    font-size: 13px;
+    color: #0259d1;
+    text-decoration: none;
+}
+
+.opsdesk-file-link:hover {
+    text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+    .opsdesk-stepper {
+        justify-content: center;
+        gap: 12px;
+    }
+
+    .stepper-line {
+        display: none;
+    }
+
+    .stepper-step {
+        width: max-content;
+        max-width: max-content;
+    }
+
+    .stepper-label {
+        font-size: 11px;
+        margin-left: 4px;
+    }
+
+    .opsdesk-timeline {
+        padding-left: 16px;
+    }
+
+    .opsdesk-timeline-marker {
+        left: -16px;
+        width: 12px;
+        height: 12px;
+    }
+}

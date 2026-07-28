@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
@@ -15,7 +15,7 @@ function opsdesk_is_warehouse_module_active()
 /**
  * Resolve the canonical SKU for a tblitems product row.
  *
- * Priority: commodity_code (warehouse) â†’ sku_code â†’ ITEM-{id}
+ * Priority: commodity_code (warehouse) → sku_code → ITEM-{id}
  *
  * @param array|object $item
  * @return string
@@ -65,7 +65,7 @@ function opsdesk_get_product_label($item)
     }
 
     if ($sku !== '' && $name !== '' && stripos($name, $sku) === false) {
-        return $sku . ' â€” ' . $name;
+        return $sku . ' — ' . $name;
     }
 
     if ($name !== '') {
@@ -97,7 +97,7 @@ function opsdesk_get_product_subtext($item)
         $parts[] = _l('opsdesk_stock') . ': ' . app_format_number($item['warehouse_stock']);
     }
 
-    return implode(' Â· ', $parts);
+    return implode(' · ', $parts);
 }
 
 /**
@@ -259,9 +259,19 @@ function opsdesk_get_warehouse_stock_total($commodity_id)
         return 0.0;
     }
 
-    $map = opsdesk_get_warehouse_stock_map();
+    $CI = &get_instance();
 
-    return $map[(int) $commodity_id] ?? 0.0;
+    if (!$CI->db->table_exists(db_prefix() . 'inventory_manage')) {
+        return 0.0;
+    }
+
+    $CI->db->select('SUM(CAST(inventory_number AS DECIMAL(15,4))) as total_stock', false);
+    $CI->db->from(db_prefix() . 'inventory_manage');
+    $CI->db->where('commodity_id', (int) $commodity_id);
+
+    $row = $CI->db->get()->row_array();
+
+    return $row && isset($row['total_stock']) ? (float) $row['total_stock'] : 0.0;
 }
 
 /**
@@ -399,11 +409,53 @@ function opsdesk_get_transport_mediums($active_only = false)
     return $mediums;
 }
 
-function opsdesk_get_transport_medium_label($type_key)
+/**
+ * Fetch a single transport medium row by its integer ID.
+ *
+ * @param int $id
+ * @return array|null
+ */
+function opsdesk_get_transport_medium_by_id($id)
+{
+    if (!is_numeric($id) || (int) $id <= 0) {
+        return null;
+    }
+
+    $CI = &get_instance();
+
+    if (!isset($CI->db) || !$CI->db->table_exists(db_prefix() . 'opsdesk_transport_mediums')) {
+        return null;
+    }
+
+    $row = $CI->db->get_where(db_prefix() . 'opsdesk_transport_mediums', ['id' => (int) $id])->row_array();
+
+    if (!$row) {
+        return null;
+    }
+
+    return [
+        'id'       => (int) $row['id'],
+        'type_key' => trim((string) $row['type_key']),
+        'name'     => trim((string) $row['name']),
+    ];
+}
+
+function opsdesk_get_transport_medium_label($type_key_or_id)
 {
     $mediums = opsdesk_get_transport_mediums(true);
 
-    return $mediums[$type_key] ?? $type_key;
+    if (isset($mediums[$type_key_or_id])) {
+        return $mediums[$type_key_or_id];
+    }
+
+    if (is_numeric($type_key_or_id)) {
+        $medium = opsdesk_get_transport_medium_by_id((int) $type_key_or_id);
+        if ($medium) {
+            return $medium['name'];
+        }
+    }
+
+    return $type_key_or_id;
 }
 
 function opsdesk_get_order_statuses($active_only = true)

@@ -112,12 +112,7 @@
                                         </td>
                                         <td><?php echo opsdesk_get_priority_badge($order['priority']); ?></td>
                                         <td><?php echo e($order['combo_name'] ?: '—'); ?></td>
-                                        <td>
-                                            <?php
-                                            $ops_customer = !empty($order['customer_id']) ? get_client($order['customer_id']) : null;
-                                            echo e($ops_customer ? $ops_customer->company : '—');
-                                            ?>
-                                        </td>
+                                        <td><?php echo e(!empty($order['customer_name']) ? $order['customer_name'] : '—'); ?></td>
                                         <td><?php echo (int) $order['quantity']; ?></td>
                                         <td>
                                             <span class="label label-tag tag-id-1">

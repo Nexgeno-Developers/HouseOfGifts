@@ -347,12 +347,8 @@ function getCsrfPostData() {
     }
 
     $("#opsdesk_order_combo_id").on("change changed.bs.select", function () {
-      resetOverrides();
-      debouncedStockCheck();
-    });
-
-    $comboSelect.on("change", function () {
-      // syncCityFromSelect is called via changed.bs.select in initCustomerSearch
+        resetOverrides();
+        debouncedStockCheck();
     });
 
     $("#opsdesk_order_qty").on("input change", debouncedStockCheck);
@@ -392,7 +388,9 @@ function getCsrfPostData() {
 
     initCustomerSearch();
 
-}(jQuery);
+  });
+
+})(jQuery);
 
 /**
  * OpsDesk — Order detail: inline priority change.

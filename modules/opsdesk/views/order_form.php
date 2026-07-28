@@ -234,6 +234,7 @@
         error: '<?php echo _l('opsdesk_error_loading'); ?>',
         billRequired: '<?php echo _l('opsdesk_bill_required'); ?>',
         noCustomerMatch: '<?php echo _l('opsdesk_no_customer_match'); ?>',
+        transportMediumRequired: '<?php echo _l('opsdesk_transport_medium_required'); ?>',
     };
 </script>
 

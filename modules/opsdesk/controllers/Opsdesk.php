@@ -37,7 +37,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             ajax_access_denied();
         }
 
-        $q = $this->input->get('q') ?: '';
+        $q = $this->input->post('q') ?: '';
         $clients = opsdesk_search_clients($q, 50);
 
         echo json_encode(['success' => true, 'clients' => $clients]);
@@ -771,7 +771,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $transport_mediums = $this->opsdesk_transport_mediums_model->get();
         $transport_mediums_dropdown = [];
         foreach ($transport_mediums as $tm) {
-            $transport_mediums_dropdown[$tm['type_key']] = $tm['name'];
+            $transport_mediums_dropdown[$tm['id']] = $tm['name'];
         }
         $data['transport_mediums'] = $transport_mediums_dropdown;
         $data['staff_members'] = opsdesk_get_staff_members();
@@ -846,11 +846,15 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $packing_type = trim($this->input->post('packing_type') ?? '');
         $priority     = (int) $this->input->post('priority');
         $priority     = in_array($priority, [0, 1], true) ? $priority : 0;
-        $transport_medium_id = trim($this->input->post('transport_medium_id') ?? '');
+        $transport_medium_id = (int) $this->input->post('transport_medium_id');
         $packing_types = array_keys(opsdesk_get_packing_types());
-        $transport_mediums = array_keys(opsdesk_get_transport_mediums(true));
 
-        if ($combo_id <= 0 || $quantity < 1 || !in_array($packing_type, $packing_types, true) || !in_array($transport_medium_id, $transport_mediums, true)) {
+        if ($combo_id <= 0 || $quantity < 1 || !in_array($packing_type, $packing_types, true) || $transport_medium_id <= 0) {
+            set_alert('warning', _l('opsdesk_invalid_request'));
+            redirect(admin_url('opsdesk/order'));
+        }
+
+        if (!$this->opsdesk_transport_mediums_model->get($transport_medium_id)) {
             set_alert('warning', _l('opsdesk_invalid_request'));
             redirect(admin_url('opsdesk/order'));
         }

@@ -861,12 +861,18 @@ class Opsdesk_orders_model extends App_Model
     {
         $this->db->select(
             $this->table_orders . '.*,' .
-            'CONCAT(' . db_prefix() . 'staff.firstname, " ", ' . db_prefix() . 'staff.lastname) as creator_name',
+            'CONCAT(' . db_prefix() . 'staff.firstname, " ", ' . db_prefix() . 'staff.lastname) as creator_name,' .
+            db_prefix() . 'clients.company as customer_name',
             false
         );
         $this->db->join(
             db_prefix() . 'staff',
             db_prefix() . 'staff.staffid = ' . $this->table_orders . '.created_by',
+            'left'
+        );
+        $this->db->join(
+            db_prefix() . 'clients',
+            db_prefix() . 'clients.userid = ' . $this->table_orders . '.customer_id',
             'left'
         );
     }

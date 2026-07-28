@@ -213,10 +213,19 @@ $lang['opsdesk_carton_count_required']             = 'Carton Count Required';
 
 // Order Detail Panels (UX restructure)
 $lang['opsdesk_status_actions']            = 'Status & Actions';
-$lang['opsdesk_assignment']                = 'Assignment';
+$lang['opsdesk_assignment']                = 'Staff Assignment';
 $lang['opsdesk_completion_documents']      = 'Completion Documents';
 $lang['opsdesk_files']                     = 'Files';
 $lang['opsdesk_priority']                  = 'Priority';
 $lang['opsdesk_change_priority']           = 'Change Priority';
 $lang['opsdesk_cancel_order']              = 'Cancel Order';
 $lang['opsdesk_cancel_order_confirm']      = 'Cancel this order? Reserved stock will be released.';
+
+// Order Detail Redesign
+$lang['opsdesk_order_information']         = 'Order Information';
+$lang['opsdesk_operations_control']        = 'Operations Control';
+$lang['opsdesk_documents_attachments']     = 'Documents & Attachments';
+$lang['opsdesk_tab_status']                = 'Status';
+$lang['opsdesk_tab_assignment']            = 'Assignment';
+$lang['opsdesk_tab_priority']              = 'Priority';
+$lang['opsdesk_payment_received']          = 'Payment Received';

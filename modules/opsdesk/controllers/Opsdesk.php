@@ -711,6 +711,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
 
         $status_filter  = $this->input->get('status');
         $priority_filter = $this->input->get('priority');
+        $delivery_sort   = $this->input->get('sort_by_delivery_date');
         $own_only       = !opsdesk_can_view_all_orders();
 
         $data['title']         = _l('opsdesk_all_orders');
@@ -719,9 +720,11 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             'staff_id' => get_staff_user_id(),
             'status'   => $status_filter,
             'priority' => $priority_filter,
+            'sort_by_delivery_date' => $delivery_sort,
         ]);
         $data['status_filter']   = $status_filter;
         $data['priority_filter'] = $priority_filter;
+        $data['delivery_sort']   = $delivery_sort;
         $data['status_counts'] = $this->opsdesk_orders_model->count_by_status([
             'own_only' => $own_only,
             'staff_id' => get_staff_user_id(),
@@ -847,6 +850,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $priority     = (int) $this->input->post('priority');
         $priority     = in_array($priority, [0, 1], true) ? $priority : 0;
         $transport_medium_id = (int) $this->input->post('transport_medium_id');
+        $delivery_date = trim($this->input->post('delivery_date') ?? '');
         $packing_types = array_keys(opsdesk_get_packing_types());
 
         if ($combo_id <= 0 || $quantity < 1 || !in_array($packing_type, $packing_types, true) || $transport_medium_id <= 0) {
@@ -857,6 +861,16 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         if (!$this->opsdesk_transport_mediums_model->get($transport_medium_id)) {
             set_alert('warning', _l('opsdesk_invalid_request'));
             redirect(admin_url('opsdesk/order'));
+        }
+
+        if ($delivery_date !== '') {
+            $delivery_date = date('Y-m-d', strtotime($delivery_date));
+            if ($delivery_date === false) {
+                set_alert('warning', _l('opsdesk_invalid_request'));
+                redirect(admin_url('opsdesk/order'));
+            }
+        } else {
+            $delivery_date = null;
         }
 
         $overrides = $this->parse_order_overrides_from_post();
@@ -909,6 +923,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             'quantity'     => $quantity,
             'packing_type' => $packing_type,
             'transport_medium_id' => $transport_medium_id,
+            'delivery_date' => $delivery_date,
             'notes'        => trim($this->input->post('notes') ?? ''),
             'bill_file'    => $bill_upload['file'],
             'payment_file' => $payment_file,
@@ -1272,6 +1287,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             'quantity'       => max(1, (int) $this->input->get('quantity')),
             'customer_id'    => (int) $this->input->get('customer_id'),
             'customer_city'  => trim($this->input->get('customer_city') ?? ''),
+            'delivery_date'  => trim($this->input->get('delivery_date') ?? ''),
             'substitutions'  => [],
             'removed'        => [],
             'added'         => [],

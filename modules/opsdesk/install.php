@@ -236,12 +236,14 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         `count_by` int(11) DEFAULT NULL,
         `cancelled_by` int(11) DEFAULT NULL,
         `cancelled_at` datetime DEFAULT NULL,
+        `delivery_date` date DEFAULT NULL,
         `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`),
         KEY `idx_opsdesk_orders_combo_id` (`combo_id`),
         KEY `idx_opsdesk_orders_status` (`status`),
         KEY `idx_opsdesk_orders_transport_medium` (`transport_medium_id`),
+        KEY `idx_opsdesk_orders_delivery_date` (`delivery_date`),
         KEY `idx_opsdesk_orders_created_by` (`created_by`),
         KEY `idx_opsdesk_orders_created_at` (`created_at`),
         CONSTRAINT `fk_opsdesk_orders_combo`
@@ -253,6 +255,12 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
     if (!$CI->db->field_exists('transport_medium_id', $prefix . 'opsdesk_orders')) {
         $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD COLUMN `transport_medium_id` INT UNSIGNED DEFAULT NULL AFTER `packing_type`");
         $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD INDEX `idx_opsdesk_orders_transport_medium` (`transport_medium_id`)");
+    }
+
+    // Add delivery_date column if it doesn't exist (for existing installations)
+    if (!$CI->db->field_exists('delivery_date', $prefix . 'opsdesk_orders')) {
+        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD COLUMN `delivery_date` DATE DEFAULT NULL AFTER `cancelled_at`");
+        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD INDEX `idx_opsdesk_orders_delivery_date` (`delivery_date`)");
     }
 }
 

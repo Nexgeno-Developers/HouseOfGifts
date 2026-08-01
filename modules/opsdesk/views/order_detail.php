@@ -89,6 +89,16 @@
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_transport_medium'); ?></span>
                                             <span class="opsdesk-meta-value"><?php echo e(opsdesk_get_transport_medium_label($order->transport_medium_id ?? '')); ?></span>
                                         </div>
+                                        <div class="opsdesk-meta-item">
+                                            <span class="opsdesk-meta-label"><?php echo _l('opsdesk_delivery_date'); ?></span>
+                                            <span class="opsdesk-meta-value">
+                                                <?php if (!empty($order->delivery_date)) { ?>
+                                                    <?php echo e(_d($order->delivery_date)); ?>
+                                                <?php } else { ?>
+                                                    <span class="text-muted"><?php echo _l('opsdesk_no_delivery_date'); ?></span>
+                                                <?php } ?>
+                                            </span>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
                                         <?php if (!empty($order->customer_id)) { ?>

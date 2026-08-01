@@ -38,6 +38,7 @@ class Opsdesk_orders_model extends App_Model
         $own_only   = !empty($options['own_only']);
         $status     = $options['status'] ?? null;
         $priority   = $options['priority'] ?? null;
+        $delivery_sort = $options['sort_by_delivery_date'] ?? null;
 
         if (is_numeric($id)) {
             $this->db->where($this->table_orders . '.id', (int) $id);
@@ -72,8 +73,20 @@ class Opsdesk_orders_model extends App_Model
             $this->db->where($this->table_orders . '.priority', (int) $priority);
         }
 
-        $this->db->order_by($this->table_orders . '.priority', 'DESC');
-        $this->db->order_by($this->table_orders . '.created_at', 'DESC');
+        if ($delivery_sort === 'asc') {
+            $this->db->order_by($this->table_orders . '.delivery_date IS NULL', 'ASC');
+            $this->db->order_by($this->table_orders . '.delivery_date', 'ASC');
+            $this->db->order_by($this->table_orders . '.priority', 'DESC');
+            $this->db->order_by($this->table_orders . '.created_at', 'DESC');
+        } elseif ($delivery_sort === 'desc') {
+            $this->db->order_by($this->table_orders . '.delivery_date IS NULL', 'ASC');
+            $this->db->order_by($this->table_orders . '.delivery_date', 'DESC');
+            $this->db->order_by($this->table_orders . '.priority', 'DESC');
+            $this->db->order_by($this->table_orders . '.created_at', 'DESC');
+        } else {
+            $this->db->order_by($this->table_orders . '.priority', 'DESC');
+            $this->db->order_by($this->table_orders . '.created_at', 'DESC');
+        }
 
         return $this->db->get($this->table_orders)->result_array();
     }

@@ -229,3 +229,12 @@ $lang['opsdesk_tab_status']                = 'Status';
 $lang['opsdesk_tab_assignment']            = 'Assignment';
 $lang['opsdesk_tab_priority']              = 'Priority';
 $lang['opsdesk_payment_received']          = 'Payment Received';
+
+// Delivery Date
+$lang['opsdesk_delivery_date']             = 'Delivery Date';
+$lang['opsdesk_delivery_date_help']        = 'Expected delivery date for this order.';
+$lang['opsdesk_sort_by_delivery_date']     = 'Delivery Date';
+$lang['opsdesk_sort_by_delivery_date_asc'] = 'Delivery Date (sooner first)';
+$lang['opsdesk_sort_by_delivery_date_desc'] = 'Delivery Date (later first)';
+$lang['opsdesk_no_delivery_date']          = 'No date set';
+$lang['opsdesk_delivery_date_high_priority'] = 'High Priority Delivery';

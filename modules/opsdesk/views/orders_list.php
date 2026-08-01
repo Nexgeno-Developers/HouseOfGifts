@@ -80,6 +80,18 @@
                                     </option>
                                 </select>
                             </div>
+                            <div class="col-md-3">
+                                <select name="sort_by_delivery_date" class="selectpicker" data-width="100%"
+                                    onchange="this.form.submit()">
+                                    <option value=""><?php echo _l('opsdesk_sort_by_delivery_date'); ?></option>
+                                    <option value="asc" <?php echo (string) $delivery_sort === 'asc' ? 'selected' : ''; ?>>
+                                        <?php echo _l('opsdesk_sort_by_delivery_date_asc'); ?>
+                                    </option>
+                                    <option value="desc" <?php echo (string) $delivery_sort === 'desc' ? 'selected' : ''; ?>>
+                                        <?php echo _l('opsdesk_sort_by_delivery_date_desc'); ?>
+                                    </option>
+                                </select>
+                            </div>
                         </form>
 
                         <div class="table-responsive">
@@ -88,6 +100,7 @@
                                 <tr>
                                     <th><?php echo _l('opsdesk_order_id'); ?></th>
                                     <th><?php echo _l('opsdesk_priority'); ?></th>
+                                    <th><?php echo _l('opsdesk_delivery_date'); ?></th>
                                     <th><?php echo _l('opsdesk_combo_name'); ?></th>
                                     <th><?php echo _l('opsdesk_customer'); ?></th>
                                     <th><?php echo _l('opsdesk_order_quantity'); ?></th>
@@ -111,6 +124,17 @@
                                             </a>
                                         </td>
                                         <td><?php echo opsdesk_get_priority_badge($order['priority']); ?></td>
+                                        <td>
+                                            <?php if (!empty($order['delivery_date'])) { ?>
+                                                <?php
+                                                $is_high = (int) $order['priority'] === 1;
+                                                $date_style = $is_high ? 'color:#e7515e;font-weight:600;' : 'color:#0259d1;';
+                                                echo '<span style="' . $date_style . '">' . e(_d($order['delivery_date'])) . '</span>';
+                                                ?>
+                                            <?php } else { ?>
+                                                <span class="text-muted"><?php echo _l('opsdesk_no_delivery_date'); ?></span>
+                                            <?php } ?>
+                                        </td>
                                         <td><?php echo e($order['combo_name'] ?: '—'); ?></td>
                                         <td><?php echo e(!empty($order['customer_name']) ? $order['customer_name'] : '—'); ?></td>
                                         <td><?php echo (int) $order['quantity']; ?></td>
@@ -203,7 +227,7 @@
                                     <?php } ?>
                                     <?php if (empty($orders)) { ?>
                                     <tr>
-                                        <td colspan="<?php echo !empty($global_view) ? 12 : 11; ?>" class="text-center text-muted">
+                                        <td colspan="<?php echo !empty($global_view) ? 13 : 12; ?>" class="text-center text-muted">
                                             <?php echo _l('opsdesk_no_orders'); ?>
                                         </td>
                                     </tr>

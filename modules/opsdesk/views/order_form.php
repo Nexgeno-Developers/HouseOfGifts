@@ -71,6 +71,19 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="opsdesk_delivery_date" class="control-label">
+                                        <?php echo _l('opsdesk_delivery_date'); ?>
+                                    </label>
+                                    <input type="date" name="delivery_date" id="opsdesk_delivery_date" class="form-control"
+                                        value="<?php echo e($prefill['delivery_date'] ?? ''); ?>">
+                                    <p class="text-muted mtop5"><small><?php echo _l('opsdesk_delivery_date_help'); ?></small></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6">
                                 <label class="control-label"><?php echo _l('opsdesk_priority'); ?></label>
                                 <div class="radio radio-primary radio-inline mright15">

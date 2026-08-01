@@ -1,4 +1,4 @@
-<?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
+<?php // opsdesk order detail view - rebuilt
 <?php init_head(); ?>
 <link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
 <link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/order_detail.css'); ?>">
@@ -10,10 +10,10 @@
                 <div class="tw-flex tw-justify-between tw-items-center tw-mb-3">
                     <h4 class="tw-mt-0 tw-font-bold tw-text-lg tw-text-neutral-700 tw-mb-0">
                         <?php echo e($title); ?>
-                        <span class="label <?php echo opsdesk_get_order_status_class($order->status); ?> mleft5">
-                            <?php echo e(opsdesk_get_order_status_label($order->status)); ?>
+                        <span class="label <?php echo opsdesk_get_order_status_class($order['status']); ?> mleft5">
+                            <?php echo e(opsdesk_get_order_status_label($order['status'])); ?>
                         </span>
-                        <?php echo opsdesk_get_priority_badge($order->priority); ?>
+                        <?php echo opsdesk_get_priority_badge($order['priority']); ?>
                     </h4>
                     <a href="<?php echo admin_url('opsdesk/orders'); ?>" class="btn btn-default">
                         <?php echo _l('opsdesk_all_orders'); ?>
@@ -23,7 +23,7 @@
                 <!-- Visual Stepper -->
                 <?php
                 $statuses = opsdesk_get_order_statuses(true);
-                $current_status = $order->status;
+                $current_status = $order['status'];
                 $status_keys = array_column($statuses, 'status_key');
                 $current_index = array_search($current_status, $status_keys, true);
                 if ($current_index === false) {
@@ -75,25 +75,25 @@
                                     <div class="col-md-6">
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_combo_name'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo e($order->combo_name); ?></span>
+                                            <span class="opsdesk-meta-value"><?php echo e($order['combo_name']); ?></span>
                                         </div>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_order_quantity'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo (int) $order->quantity; ?></span>
+                                            <span class="opsdesk-meta-value"><?php echo (int) $order['quantity']; ?></span>
                                         </div>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_packing_type'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo e(opsdesk_get_packing_type_label($order->packing_type)); ?></span>
+                                            <span class="opsdesk-meta-value"><?php echo e(opsdesk_get_packing_type_label($order['packing_type'])); ?></span>
                                         </div>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_transport_medium'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo e(opsdesk_get_transport_medium_label($order->transport_medium_id ?? '')); ?></span>
+                                            <span class="opsdesk-meta-value"><?php echo e(opsdesk_get_transport_medium_label($order['transport_medium_id'] ?? '')); ?></span>
                                         </div>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_delivery_date'); ?></span>
                                             <span class="opsdesk-meta-value">
-                                                <?php if (!empty($order->delivery_date)) { ?>
-                                                    <?php echo e(_d($order->delivery_date)); ?>
+                                                <?php if (!empty($order['delivery_date'])) { ?>
+                                                    <?php echo e(_d($order['delivery_date'])); ?>
                                                 <?php } else { ?>
                                                     <span class="text-muted"><?php echo _l('opsdesk_no_delivery_date'); ?></span>
                                                 <?php } ?>
@@ -101,37 +101,49 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <?php if (!empty($order->customer_id)) { ?>
+                                        <?php if (!empty($order['customer_id'])) { ?>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_customer'); ?></span>
                                             <span class="opsdesk-meta-value">
                                                 <?php
-                                                $ops_customer = get_client($order->customer_id);
+                                                $ops_customer = get_client($order['customer_id']);
                                                 echo e($ops_customer ? $ops_customer->company : _l('opsdesk_unknown_product'));
                                                 ?>
                                             </span>
                                         </div>
-                                        <?php if (!empty($order->customer_city)) { ?>
+                                        <?php if (!empty($order['customer_city'])) { ?>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_customer_city'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo e($order->customer_city); ?></span>
+                                            <span class="opsdesk-meta-value"><?php echo e($order['customer_city']); ?></span>
                                         </div>
                                         <?php } ?>
                                         <?php } ?>
-                                        <div class="opsdesk-meta-item">
-                                            <span class="opsdesk-meta-label"><?php echo _l('opsdesk_created_by'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo e($order->creator_name); ?></span>
-                                        </div>
-                                        <div class="opsdesk-meta-item">
-                                            <span class="opsdesk-meta-label"><?php echo _l('opsdesk_created_at'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo e(_dt($order->created_at)); ?></span>
-                                        </div>
+<div class="opsdesk-meta-item">
+                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_created_by'); ?></span>
+                                             <span class="opsdesk-meta-value">
+                                                 <?php if (!empty($order['creator_name'])) { ?>
+                                                     <?php echo e($order['creator_name']); ?>
+                                                 <?php } else { ?>
+                                                     <span class="text-muted"><?php echo _l('opsdesk_unknown'); ?></span>
+                                                 <?php } ?>
+                                             </span>
+                                         </div>
+                                         <div class="opsdesk-meta-item">
+                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_created_at'); ?></span>
+                                             <span class="opsdesk-meta-value">
+                                                 <?php if (!empty($order['created_at'])) { ?>
+                                                     <?php echo e(_dt($order['created_at'])); ?>
+                                                 <?php } else { ?>
+                                                     <span class="text-muted"><?php echo _l('opsdesk_no_date'); ?></span>
+                                                 <?php } ?>
+                                             </span>
+                                         </div>
                                     </div>
                                 </div>
-                                <?php if (!empty($order->notes)) { ?>
+                                <?php if (!empty($order['notes'])) { ?>
                                 <div class="opsdesk-meta-item tw-mt-3">
                                     <span class="opsdesk-meta-label"><?php echo _l('opsdesk_notes'); ?></span>
-                                    <p class="tw-mt-1 tw-mb-0"><?php echo nl2br(e($order->notes)); ?></p>
+                                    <p class="tw-mt-1 tw-mb-0"><?php echo nl2br(e($order['notes'])); ?></p>
                                 </div>
                                 <?php } ?>
                             </div>
@@ -154,7 +166,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php foreach ($order->items as $item) { ?>
+                                            <?php foreach ($order['items'] as $item) { ?>
                                             <tr>
                                                 <td><?php echo e($item['sku']); ?></td>
                                                 <td>
@@ -180,7 +192,7 @@
                                 <h5 class="no-margin font-bold"><?php echo _l('opsdesk_status_history'); ?></h5>
                                 <hr class="hr-panel-heading" />
                                 <div class="opsdesk-timeline">
-                                    <?php foreach ($order->status_log as $log) { ?>
+                                    <?php foreach ($order['status_log'] as $log) { ?>
                                     <div class="opsdesk-timeline-item">
                                         <div class="opsdesk-timeline-marker"></div>
                                         <div class="opsdesk-timeline-content">
@@ -247,9 +259,9 @@
                                     <!-- Tab 1: Status Advance & Acceptance -->
                                     <div role="tabpanel" class="tab-pane active" id="opsdesk-tab-status">
                                         <?php if (!empty($can_edit)) { ?>
-                                            <?php if ($order->status === 'pending') { ?>
+                                            <?php if ($order['status'] === 'pending') { ?>
                                             <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'opsdesk-accept-form row-margin-bottom']); ?>
-                                            <input type="hidden" name="order_id" value="<?php echo (int) $order->id; ?>">
+                                            <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
                                             <input type="hidden" name="status" value="in_progress">
                                             <div class="form-group row-margin-bottom">
                                                 <label><?php echo _l('opsdesk_assigned_to'); ?> <span class="text-danger">*</span></label>
@@ -272,11 +284,11 @@
                                                 if (!empty($next_statuses)) {
                                                 ?>
                                                 <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'row-margin-bottom']); ?>
-                                                    <input type="hidden" name="order_id" value="<?php echo (int) $order->id; ?>">
+                                                    <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
                                                     <select name="status" class="selectpicker" data-width="100%" onchange="if (this.value) this.form.submit();">
                                                         <option value=""><?php echo _l('opsdesk_update_status'); ?></option>
                                                         <?php foreach ($next_statuses as $status_key) {
-                                                            if ($order->status === $status_key) { continue; }
+                                                            if ($order['status'] === $status_key) { continue; }
                                                         ?>
                                                         <option value="<?php echo e($status_key); ?>">
                                                             <?php echo e(opsdesk_get_order_status_label($status_key)); ?>
@@ -288,7 +300,7 @@
                                             </div>
 
                                             <?php if (!empty($can_cancel_own) || !empty($can_cancel_any)) { ?>
-                                            <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order->id); ?>"
+                                            <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order['id']); ?>"
                                                 class="btn btn-danger _delete button-margin-r-b"
                                                 data-message="<?php echo e(_l('opsdesk_cancel_order_confirm')); ?>">
                                                 <?php echo _l('opsdesk_cancel_order'); ?>
@@ -297,7 +309,7 @@
                                         <?php } else { ?>
                                             <div class="text-muted">
                                                 <?php if (!empty($can_cancel_own) || !empty($can_cancel_any)) { ?>
-                                                <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order->id); ?>"
+                                                <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order['id']); ?>"
                                                     class="btn btn-danger _delete button-margin-r-b"
                                                     data-message="<?php echo e(_l('opsdesk_cancel_order_confirm')); ?>">
                                                     <?php echo _l('opsdesk_cancel_order'); ?>
@@ -309,15 +321,15 @@
 
                                     <!-- Tab 2: Staff Assignment -->
                                     <div role="tabpanel" class="tab-pane" id="opsdesk-tab-assign">
-                                        <?php if (!empty($can_edit) && $order->status !== 'pending') { ?>
-                                        <?php echo form_open(admin_url('opsdesk/assign_order/' . $order->id), ['id' => 'opsdesk_assign_form', 'class' => 'row-margin-bottom']); ?>
+                                        <?php if (!empty($can_edit) && $order['status'] !== 'pending') { ?>
+                                        <?php echo form_open(admin_url('opsdesk/assign_order/' . $order['id']), ['id' => 'opsdesk_assign_form', 'class' => 'row-margin-bottom']); ?>
                                         <div class="form-group row-margin-bottom">
                                             <label><?php echo _l('opsdesk_packed_by'); ?></label>
                                             <select name="packed_by" id="opsdesk_packed_by" class="selectpicker" data-width="100%">
                                                 <option value=""><?php echo _l('opsdesk_unassigned'); ?></option>
                                                 <?php foreach ($staff_members as $sm) { ?>
                                                 <option value="<?php echo (int) $sm['staffid']; ?>"
-                                                    <?php echo (!empty($order->packed_by) && (int) $order->packed_by === (int) $sm['staffid']) ? 'selected' : ''; ?>>
+                                                    <?php echo (!empty($order['packed_by']) && (int) $order['packed_by'] === (int) $sm['staffid']) ? 'selected' : ''; ?>>
                                                     <?php echo e($sm['full_name']); ?>
                                                 </option>
                                                 <?php } ?>
@@ -341,13 +353,13 @@
                                                 <option value=""><?php echo _l('opsdesk_unassigned'); ?></option>
                                                 <?php foreach ($staff_members as $sm) { ?>
                                                 <option value="<?php echo (int) $sm['staffid']; ?>"
-                                                    <?php echo (!empty($order->count_by) && (int) $order->count_by === (int) $sm['staffid']) ? 'selected' : ''; ?>>
+                                                    <?php echo (!empty($order['count_by']) && (int) $order['count_by'] === (int) $sm['staffid']) ? 'selected' : ''; ?>>
                                                     <?php echo e($sm['full_name']); ?>
                                                 </option>
                                                 <?php } ?>
                                             </select>
                                             <?php } else { ?>
-                                            <p><?php echo !empty($order->count_by) ? e(get_staff_full_name($order->count_by)) : '—'; ?></p>
+                                            <p><?php echo !empty($order['count_by']) ? e(get_staff_full_name($order['count_by'])) : '—'; ?></p>
                                             <?php } ?>
                                         </div>
 
@@ -357,10 +369,10 @@
                                             <input type="number" name="carton_count" id="opsdesk_carton_count"
                                                 class="form-control"
                                                 min="1"
-                                                value="<?php echo (int) ($order->carton_count ?? 0); ?>"
+                                                value="<?php echo (int) ($order['carton_count'] ?? 0); ?>"
                                                 placeholder="<?php echo _l('opsdesk_carton_count_placeholder'); ?>">
                                             <?php } else { ?>
-                                            <p><?php echo !empty($order->carton_count) ? (int) $order->carton_count : '—'; ?></p>
+                                            <p><?php echo !empty($order['carton_count']) ? (int) $order['carton_count'] : '—'; ?></p>
                                             <?php } ?>
                                         </div>
                                     </div>
@@ -375,12 +387,12 @@
                                             <div id="opsdesk_priority_inline" class="hide mtop10">
                                                 <div class="radio radio-primary radio-inline mright15 row-margin-bottom">
                                                     <input type="radio" name="opsdesk_priority_inline" id="opsdesk_p_inline_normal" value="0"
-                                                        <?php echo (int) $order->priority === 0 ? 'checked' : ''; ?>>
+                                                        <?php echo (int) $order['priority'] === 0 ? 'checked' : ''; ?>>
                                                     <label for="opsdesk_p_inline_normal"><?php echo _l('opsdesk_priority_normal'); ?></label>
                                                 </div>
                                                 <div class="radio radio-danger radio-inline mright15 row-margin-bottom">
                                                     <input type="radio" name="opsdesk_priority_inline" id="opsdesk_p_inline_high" value="1"
-                                                        <?php echo (int) $order->priority === 1 ? 'checked' : ''; ?>>
+                                                        <?php echo (int) $order['priority'] === 1 ? 'checked' : ''; ?>>
                                                     <label for="opsdesk_p_inline_high"><?php echo _l('opsdesk_priority_high'); ?></label>
                                                 </div>
                                                 <button type="button" class="btn btn-primary btn-sm button-margin-r-b" id="opsdesk_priority_save_btn">
@@ -392,7 +404,7 @@
                                             </div>
                                         </div>
                                         <?php } else { ?>
-                                        <p><?php echo e(opsdesk_get_priority_label($order->priority)); ?></p>
+                                        <p><?php echo e(opsdesk_get_priority_label($order['priority'])); ?></p>
                                         <?php } ?>
                                     </div>
                                 </div>
@@ -410,8 +422,8 @@
                                     <div class="opsdesk-attachment-item">
                                         <div class="tw-flex tw-justify-between tw-items-center">
                                             <span class="label label-primary"><?php echo _l('opsdesk_bill_upload'); ?></span>
-                                            <?php if (!empty($order->bill_file)) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order->bill_file)); ?>" target="_blank">
+                                            <?php if (!empty($order['bill_file'])) { ?>
+                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['bill_file'])); ?>" target="_blank">
                                                 <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
@@ -423,11 +435,11 @@
                                     <!-- Payment File -->
                                     <div class="opsdesk-attachment-item">
                                         <div class="tw-flex tw-justify-between tw-items-center">
-                                            <span class="label label-<?php echo !empty($order->payment_file) ? 'success' : 'danger'; ?>">
+                                            <span class="label label-<?php echo !empty($order['payment_file']) ? 'success' : 'danger'; ?>">
                                                 <?php echo _l('opsdesk_payment_received'); ?>
                                             </span>
-                                            <?php if (!empty($order->payment_file)) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order->payment_file)); ?>" target="_blank">
+                                            <?php if (!empty($order['payment_file'])) { ?>
+                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['payment_file'])); ?>" target="_blank">
                                                 <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
@@ -436,7 +448,7 @@
                                         </div>
                                         <?php if (!empty($can_edit)) { ?>
                                         <div class="mtop10">
-                                            <?php echo form_open_multipart(admin_url('opsdesk/upload_payment_file/' . $order->id), ['id' => 'opsdesk_payment_upload_form']); ?>
+                                            <?php echo form_open_multipart(admin_url('opsdesk/upload_payment_file/' . $order['id']), ['id' => 'opsdesk_payment_upload_form']); ?>
                                             <input type="file" name="payment_file" id="opsdesk_payment_file"
                                                 class="form-control"
                                                 accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx,.txt,.csv">
@@ -452,8 +464,8 @@
                                     <div class="opsdesk-attachment-item">
                                         <div class="tw-flex tw-justify-between tw-items-center">
                                             <span class="label label-info"><?php echo _l('opsdesk_lr_copy_upload'); ?></span>
-                                            <?php if (!empty($order->lr_copy)) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order->lr_copy)); ?>" target="_blank">
+                                            <?php if (!empty($order['lr_copy'])) { ?>
+                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['lr_copy'])); ?>" target="_blank">
                                                 <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
@@ -471,8 +483,8 @@
                                     <div class="opsdesk-attachment-item">
                                         <div class="tw-flex tw-justify-between tw-items-center">
                                             <span class="label label-warning"><?php echo _l('opsdesk_carton_photo_upload'); ?></span>
-                                            <?php if (!empty($order->carton_photo)) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order->carton_photo)); ?>" target="_blank">
+                                            <?php if (!empty($order['carton_photo'])) { ?>
+                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['carton_photo'])); ?>" target="_blank">
                                                 <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
@@ -494,7 +506,7 @@
         </div>
     </div>
 </div>
-<input type="hidden" id="opsdesk_order_id" value="<?php echo (int) $order->id; ?>">
+<input type="hidden" id="opsdesk_order_id" value="<?php echo (int) $order['id']; ?>">
 
 <?php init_tail(); ?>
 
@@ -517,7 +529,7 @@
           'use strict';
 
 var paymentRequiredMsg = <?php echo json_encode(_l('opsdesk_payment_required_for_completion')); ?>;
-           var hasPaymentFile = <?php echo !empty($order->payment_file) ? 'true' : 'false'; ?>;
+           var hasPaymentFile = <?php echo !empty($order['payment_file']) ? 'true' : 'false'; ?>;
            var lrCopyRequiredMsg = <?php echo json_encode(_l('opsdesk_lr_copy_required_for_completion')); ?>;
            var cartonPhotoRequiredMsg = <?php echo json_encode(_l('opsdesk_carton_photo_required_for_completion')); ?>;
            var cartonCountRequiredMsg = <?php echo json_encode(_l('opsdesk_carton_count_required_for_completion')); ?>;

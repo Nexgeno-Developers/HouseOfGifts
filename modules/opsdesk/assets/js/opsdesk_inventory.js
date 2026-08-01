@@ -2,9 +2,25 @@
  * OpsDesk — Sales inventory viewer AJAX handler.
  */
 (function ($) {
-  "use strict";
+   "use strict";
 
-  var debounceTimer = null;
+   function getCsrfPostData() {
+     if (typeof csrfData !== "undefined" && csrfData.token_name && csrfData.hash) {
+       var data = {};
+       data[csrfData.token_name] = csrfData.hash;
+       return data;
+     }
+     var tokenInput = jQuery("input[type='hidden'][name*='csrf']").first();
+     if (tokenInput.length) {
+       var tokenName = tokenInput.attr('name');
+       var data = {};
+       data[tokenName] = tokenInput.val();
+       return data;
+     }
+     return {};
+   }
+
+   var debounceTimer = null;
   var editedItems = null;
   var addedItems = null;
   var originalComboId = null;
@@ -63,37 +79,35 @@
       added_items: addedItems,
     };
 
-    if (typeof csrfData !== "undefined") {
-      postData[csrfData.token_name] = csrfData.hash;
-    }
+     $.extend(postData, getCsrfPostData());
 
-    $.post(opsdeskAjaxUrl, postData)
-      .done(function (response) {
-        $("#opsdesk_loading").addClass("hide");
+     $.post(opsdeskAjaxUrl, postData)
+       .done(function (response) {
+         $("#opsdesk_loading").addClass("hide");
 
-        if (typeof response === "string") {
-          try {
-            response = JSON.parse(response);
-          } catch (e) {
-            showError();
-            return;
-          }
-        }
+         if (typeof response === "string") {
+           try {
+             response = JSON.parse(response);
+           } catch (e) {
+             showError();
+             return;
+           }
+         }
 
-        if (!response.success) {
-          showError(response.message || opsdeskLang.error);
-          return;
-        }
+         if (!response.success) {
+           showError(response.message || opsdeskLang.error);
+           return;
+         }
 
-        currentAvailabilityData = response.data;
-        renderTable(response.data);
-        showEditorPanel();
-      })
-      .fail(function () {
-        $("#opsdesk_loading").addClass("hide");
-        showError();
-      });
-  }
+         currentAvailabilityData = response.data;
+         renderTable(response.data);
+         showEditorPanel();
+       })
+       .fail(function () {
+         $("#opsdesk_loading").addClass("hide");
+         showError();
+       });
+   }
 
   function showEditorPanel() {
     $("#opsdesk_editor_panel").removeClass("hide");
@@ -107,20 +121,18 @@
       order_quantity: parseFloat($("#opsdesk_order_quantity").val()) || 1,
     };
 
-    if (typeof csrfData !== "undefined") {
-      postData[csrfData.token_name] = csrfData.hash;
-    }
+     $.extend(postData, getCsrfPostData());
 
-    $.post(opsdeskAjaxUrl, postData)
-      .done(function (response) {
-        if (typeof response === "string") {
-          try {
-            response = JSON.parse(response);
-          } catch (e) {
-            callback(null);
-            return;
-          }
-        }
+     $.post(opsdeskAjaxUrl, postData)
+       .done(function (response) {
+         if (typeof response === "string") {
+           try {
+             response = JSON.parse(response);
+           } catch (e) {
+             callback(null);
+             return;
+           }
+         }
 
         if (response.success && response.product) {
           callback(response.product);
@@ -332,11 +344,9 @@
       action: "get_available_products",
     };
 
-    if (typeof csrfData !== "undefined") {
-      postData[csrfData.token_name] = csrfData.hash;
-    }
+     $.extend(postData, getCsrfPostData());
 
-    $.post(opsdeskAjaxUrl, postData).done(function (response) {
+     $.post(opsdeskAjaxUrl, postData).done(function (response) {
       if (typeof response === "string") {
         try {
           response = JSON.parse(response);
@@ -596,13 +606,11 @@
       var $btn = $(this);
       $btn.prop("disabled", true);
 
-      var postData = {};
-      if (typeof csrfData !== "undefined") {
-        postData[csrfData.token_name] = csrfData.hash;
-      }
+       var postData = {};
+       $.extend(postData, getCsrfPostData());
 
-      $.post(
-        opsdeskAjaxUrl.replace("ajax_availability", "seed_random_stock"),
+       $.post(
+         opsdeskAjaxUrl.replace("ajax_availability", "seed_random_stock"),
         postData,
       )
         .done(function (response) {

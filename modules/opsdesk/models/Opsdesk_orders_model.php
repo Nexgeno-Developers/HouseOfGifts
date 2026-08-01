@@ -48,12 +48,12 @@ class Opsdesk_orders_model extends App_Model
                 $this->db->where($this->table_orders . '.created_by', $staff_id);
             }
 
-            $order = $this->db->get($this->table_orders)->row();
+            $order = $this->db->get($this->table_orders)->row_array();
 
             if ($order) {
-                $order->items         = $this->get_order_items((int) $order->id);
-                $order->status_log    = $this->get_status_log((int) $order->id);
-                $order->creator_name  = get_staff_full_name((int) $order->created_by);
+                $order['items']         = $this->get_order_items((int) $order['id']);
+                $order['status_log']    = $this->get_status_log((int) $order['id']);
+                $order['creator_name']  = get_staff_full_name((int) $order['created_by']);
             }
 
             return $order;
@@ -73,16 +73,16 @@ class Opsdesk_orders_model extends App_Model
             $this->db->where($this->table_orders . '.priority', (int) $priority);
         }
 
-        if ($delivery_sort === 'asc') {
-            $this->db->order_by($this->table_orders . '.delivery_date IS NULL', 'ASC');
-            $this->db->order_by($this->table_orders . '.delivery_date', 'ASC');
-            $this->db->order_by($this->table_orders . '.priority', 'DESC');
-            $this->db->order_by($this->table_orders . '.created_at', 'DESC');
-        } elseif ($delivery_sort === 'desc') {
-            $this->db->order_by($this->table_orders . '.delivery_date IS NULL', 'ASC');
-            $this->db->order_by($this->table_orders . '.delivery_date', 'DESC');
-            $this->db->order_by($this->table_orders . '.priority', 'DESC');
-            $this->db->order_by($this->table_orders . '.created_at', 'DESC');
+         if ($delivery_sort === 'asc') {
+             $this->db->order_by($this->table_orders . '.delivery_date IS NULL', 'ASC', FALSE);
+             $this->db->order_by($this->table_orders . '.delivery_date', 'ASC');
+             $this->db->order_by($this->table_orders . '.priority', 'DESC');
+             $this->db->order_by($this->table_orders . '.created_at', 'DESC');
+         } elseif ($delivery_sort === 'desc') {
+             $this->db->order_by($this->table_orders . '.delivery_date IS NULL', 'ASC', FALSE);
+             $this->db->order_by($this->table_orders . '.delivery_date', 'DESC');
+             $this->db->order_by($this->table_orders . '.priority', 'DESC');
+             $this->db->order_by($this->table_orders . '.created_at', 'DESC');
         } else {
             $this->db->order_by($this->table_orders . '.priority', 'DESC');
             $this->db->order_by($this->table_orders . '.created_at', 'DESC');
@@ -146,6 +146,7 @@ class Opsdesk_orders_model extends App_Model
         $removed       = array_map('strval', $overrides['removed'] ?? []);
         $added         = $overrides['added'] ?? [];
         $items         = [];
+        $seen_skus     = [];
 
         foreach ($combo_items as $combo_item) {
             $combo_item_id = (string) $combo_item['id'];
@@ -181,21 +182,31 @@ class Opsdesk_orders_model extends App_Model
                 $original_id  = (int) $combo_item['id'];
             }
 
-            $items[] = [
-                'combo_item_id'     => (int) $combo_item['id'],
-                'product_item_id'   => $product_id,
-                'sku'               => $sku,
-                'product_name'      => $product_name,
-                'quantity_per_unit' => $qty_per_unit,
-                'is_substitution'   => $is_sub,
-                'original_item_id'  => $original_id,
-            ];
-        }
+             $items[] = [
+                 'combo_item_id'     => (int) $combo_item['id'],
+                 'product_item_id'   => $product_id,
+                 'sku'               => $sku,
+                 'product_name'      => $product_name,
+                 'quantity_per_unit' => $qty_per_unit,
+                 'is_substitution'   => $is_sub,
+                 'original_item_id'  => $original_id,
+             ];
+
+             $seen_skus[$sku] = true;
+         }
 
         foreach ($added as $added_item) {
             if (empty($added_item['sku'])) {
                 continue;
             }
+
+            $added_sku = trim($added_item['sku']);
+
+            // Skip if this SKU was already added or matches an existing combo item.
+            if (isset($seen_skus[$added_sku])) {
+                continue;
+            }
+            $seen_skus[$added_sku] = true;
 
             $qty_per_unit = isset($added_item['quantity_per_unit'])
                 ? (float) $added_item['quantity_per_unit']
@@ -207,7 +218,7 @@ class Opsdesk_orders_model extends App_Model
 
             $items[] = [
                 'product_item_id'   => !empty($added_item['product_item_id']) ? (int) $added_item['product_item_id'] : null,
-                'sku'               => trim($added_item['sku']),
+                'sku'               => $added_sku,
                 'product_name'      => trim($added_item['product_name'] ?? $added_item['sku']),
                 'quantity_per_unit' => $qty_per_unit,
                 'is_substitution'   => !empty($added_item['is_substitution']) ? 1 : 0,
@@ -277,11 +288,6 @@ class Opsdesk_orders_model extends App_Model
         $quantity = (float) ($order_data['quantity'] ?? 0);
         if ($quantity < 1 || empty($order_items)) {
             return ['success' => false, 'message' => _l('opsdesk_invalid_request')];
-        }
-
-        $stock_check = $this->check_items_stock($order_items, $quantity);
-        if (!$stock_check['is_fulfillable']) {
-            return ['success' => false, 'message' => _l('opsdesk_stock_insufficient')];
         }
 
         $this->db->trans_begin();
@@ -367,11 +373,15 @@ class Opsdesk_orders_model extends App_Model
                 return ['success' => false, 'message' => _l('opsdesk_order_create_failed')];
             }
 
-            $this->db->trans_commit();
+              if ($this->db->trans_commit() === false) {
+                  $this->db->trans_rollback();
 
-            log_activity('OpsDesk Order Created [ID:' . $order_id . ']');
+                  return ['success' => false, 'message' => _l('opsdesk_order_create_failed')];
+              }
 
-            return ['success' => true, 'order_id' => $order_id];
+             log_activity('OpsDesk Order Created [ID:' . $order_id . ']');
+
+             return ['success' => true, 'order_id' => $order_id];
         } catch (Exception $e) {
             $this->db->trans_rollback();
 
@@ -395,15 +405,15 @@ class Opsdesk_orders_model extends App_Model
         }
 
         if (!$is_global_cancel) {
-            if ((int) $order->created_by !== (int) $staff_id) {
+            if ((int) $order['created_by'] !== (int) $staff_id) {
                 return ['success' => false, 'message' => _l('access_denied')];
             }
 
-            if ($order->status !== 'pending') {
+            if ($order['status'] !== 'pending') {
                 return ['success' => false, 'message' => _l('opsdesk_order_cannot_cancel')];
             }
         } else {
-            if (!in_array($order->status, ['pending', 'in_progress', 'packed'], true)) {
+            if (!in_array($order['status'], ['pending', 'in_progress', 'packed'], true)) {
                 return ['success' => false, 'message' => _l('opsdesk_order_cannot_cancel')];
             }
         }
@@ -411,7 +421,7 @@ class Opsdesk_orders_model extends App_Model
         $this->db->trans_begin();
 
         try {
-            foreach ($order->items as $item) {
+            foreach ($order['items'] as $item) {
                 $this->db->query(
                     'UPDATE ' . $this->table_inventory . '
                      SET quantity_reserved = GREATEST(0, quantity_reserved - ?)
@@ -429,7 +439,7 @@ class Opsdesk_orders_model extends App_Model
                 'updated_at'   => date('Y-m-d H:i:s'),
             ]);
 
-            $this->log_status_change((int) $order_id, $order->status, 'cancelled', (int) $staff_id);
+            $this->log_status_change((int) $order_id, $order['status'], 'cancelled', (int) $staff_id);
 
             if ($this->db->trans_status() === false) {
                 $this->db->trans_rollback();
@@ -437,9 +447,11 @@ class Opsdesk_orders_model extends App_Model
                 return ['success' => false, 'message' => _l('opsdesk_order_cancel_failed')];
             }
 
-            $this->db->trans_commit();
+             if ($this->db->trans_commit() === false) {
+                 return ['success' => false, 'message' => _l('opsdesk_order_cancel_failed')];
+             }
 
-            log_activity('OpsDesk Order Cancelled [ID:' . $order_id . ']');
+             log_activity('OpsDesk Order Cancelled [ID:' . $order_id . ']');
 
             return ['success' => true];
         } catch (Exception $e) {
@@ -466,7 +478,7 @@ class Opsdesk_orders_model extends App_Model
         }
 
         $new_status = trim($new_status);
-        $current    = $order->status;
+        $current    = $order['status'];
 
         // Guard against persisting a status key longer than the column can
         // hold. opsdesk_orders.status is VARCHAR(100), matching
@@ -492,19 +504,19 @@ class Opsdesk_orders_model extends App_Model
 
         // Validate completion requirements.
         if ($new_status === 'completed') {
-            if (empty($order->payment_file)) {
+            if (empty($order['payment_file'])) {
                 return ['success' => false, 'message' => _l('opsdesk_payment_required_for_completion')];
             }
             // lr_copy, carton_photo, carton_count are required for completion.
             // Allow completion if the order already has the file, or the user
             // uploads one in this submission.
-            if (empty($order->lr_copy) && empty($extra['lr_copy'])) {
+            if (empty($order['lr_copy']) && empty($extra['lr_copy'])) {
                 return ['success' => false, 'message' => _l('opsdesk_lr_copy_required_for_completion')];
             }
-            if (empty($order->carton_photo) && empty($extra['carton_photo'])) {
+            if (empty($order['carton_photo']) && empty($extra['carton_photo'])) {
                 return ['success' => false, 'message' => _l('opsdesk_carton_photo_required_for_completion')];
             }
-            if (empty($order->carton_count) && empty($extra['carton_count'])) {
+            if (empty($order['carton_count']) && empty($extra['carton_count'])) {
                 return ['success' => false, 'message' => _l('opsdesk_carton_count_required_for_completion')];
             }
             if (empty($extra['count_by'])) {
@@ -522,23 +534,36 @@ class Opsdesk_orders_model extends App_Model
         $this->db->trans_begin();
 
         try {
-            if ($new_status === 'shipped') {
-                foreach ($order->items as $item) {
-                    $qty = (float) $item['quantity_reserved'];
+             if ($new_status === 'shipped') {
+                 // Validate that quantity_reserved is sufficient before
+                 // deducting — GREATEST(0, ...) below would silently
+                 // over-deduct if reserved exceeds available.
+                 foreach ($order['items'] as $item) {
+                     $qty = (float) $item['quantity_reserved'];
+                     $inv = $this->opsdesk_inventory_model->get_by_sku($item['sku']);
+                     if (!$inv || (float) $inv['quantity_reserved'] < $qty) {
+                         $this->db->trans_rollback();
 
-                    $this->db->query(
-                        'UPDATE ' . $this->table_inventory . '
-                         SET quantity_available = GREATEST(0, quantity_available - ?),
-                             quantity_reserved = GREATEST(0, quantity_reserved - ?)
-                         WHERE sku = ?',
-                        [$qty, $qty, $item['sku']]
-                    );
+                         return ['success' => false, 'message' => _l('opsdesk_insufficient_reserved', $item['sku'])];
+                     }
+                 }
 
-                    if (!empty($item['product_item_id'])) {
-                        opsdesk_deduct_warehouse_stock((int) $item['product_item_id'], $qty);
-                    }
-                }
-            }
+                 foreach ($order['items'] as $item) {
+                     $qty = (float) $item['quantity_reserved'];
+
+                     $this->db->query(
+                         'UPDATE ' . $this->table_inventory . '
+                          SET quantity_available = GREATEST(0, quantity_available - ?),
+                              quantity_reserved = GREATEST(0, quantity_reserved - ?)
+                          WHERE sku = ?',
+                         [$qty, $qty, $item['sku']]
+                     );
+
+                     if (!empty($item['product_item_id'])) {
+                         opsdesk_deduct_warehouse_stock((int) $item['product_item_id'], $qty);
+                     }
+                 }
+             }
 
             $update = [
                 'status'     => $new_status,
@@ -554,11 +579,19 @@ class Opsdesk_orders_model extends App_Model
                 $update['packed_by'] = (int) $extra['packed_by'];
             }
 
-            if (!empty($extra['count_by'])) {
-                $update['count_by'] = (int) $extra['count_by'];
-            }
+             if (!empty($extra['count_by'])) {
+                 $update['count_by'] = (int) $extra['count_by'];
+             }
 
-            // Handle completion fields
+             if (array_key_exists('delivery_date', $extra)) {
+                 $update['delivery_date'] = $extra['delivery_date'];
+             }
+
+             if (array_key_exists('transport_medium_id', $extra)) {
+                 $update['transport_medium_id'] = (int) $extra['transport_medium_id'];
+             }
+
+             // Handle completion fields
             if ($new_status === 'completed') {
                 if (!empty($extra['lr_copy'])) {
                     $update['lr_copy'] = $extra['lr_copy'];
@@ -588,9 +621,11 @@ class Opsdesk_orders_model extends App_Model
                 return ['success' => false, 'message' => _l('opsdesk_status_update_failed')];
             }
 
-            $this->db->trans_commit();
+             if ($this->db->trans_commit() === false) {
+                 return ['success' => false, 'message' => _l('opsdesk_status_update_failed')];
+             }
 
-            log_activity('OpsDesk Order Status Updated [ID:' . $order_id . ', Status:' . $new_status . ']');
+             log_activity('OpsDesk Order Status Updated [ID:' . $order_id . ', Status:' . $new_status . ']');
 
             return ['success' => true];
         } catch (Exception $e) {
@@ -631,8 +666,8 @@ class Opsdesk_orders_model extends App_Model
             $assigned_name = $staff_id > 0 ? get_staff_full_name($staff_id) : _l('opsdesk_unassigned');
             $this->log_status_change(
                 (int) $order_id,
-                $order->status,
-                $order->status,
+                $order['status'],
+                $order['status'],
                 (int) $by_staff_id,
                 _l('opsdesk_assigned_note', [$assigned_name])
             );
@@ -664,7 +699,7 @@ class Opsdesk_orders_model extends App_Model
             $priority = 0;
         }
 
-        $old_priority = (int) $order->priority;
+        $old_priority = (int) $order['priority'];
         if ($old_priority === $priority) {
             return ['success' => true];
         }
@@ -681,7 +716,7 @@ class Opsdesk_orders_model extends App_Model
         ]);
 
         if ($this->db->affected_rows() > 0) {
-            $this->log_status_change((int) $order_id, $order->status, $order->status, (int) $staff_id, $note);
+            $this->log_status_change((int) $order_id, $order['status'], $order['status'], (int) $staff_id, $note);
         }
 
         return ['success' => true];
@@ -733,7 +768,7 @@ class Opsdesk_orders_model extends App_Model
             return false;
         }
 
-        if (!in_array($order->status, ['cancelled', 'completed'], true)) {
+        if (!in_array($order['status'], ['cancelled', 'completed'], true)) {
             return false;
         }
 
@@ -765,7 +800,7 @@ class Opsdesk_orders_model extends App_Model
         $this->db->from($this->table_log);
         $this->db->join(db_prefix() . 'staff', db_prefix() . 'staff.staffid = ' . $this->table_log . '.changed_by', 'left');
         $this->db->where($this->table_log . '.order_id', (int) $order_id);
-        $this->db->order_by($this->table_log . '.created_at', 'ASC');
+         $this->db->order_by($this->table_log . '.created_at', 'DESC');
 
         return $this->db->get()->result_array();
     }

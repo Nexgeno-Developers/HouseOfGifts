@@ -156,9 +156,9 @@
                                         </td>
                                         <td><?php echo e(opsdesk_get_assigned_name($order['packed_by'] ?? null) ?: '—'); ?></td>
                                         <?php if (!empty($global_view)) { ?>
-                                        <td><?php echo e($order['creator_name']); ?></td>
+                                         <td><?php echo e(!empty($order['creator_name']) ? $order['creator_name'] : '—'); ?></td>
                                         <?php } ?>
-                                        <td><?php echo e(_dt($order['created_at'])); ?></td>
+                                         <td><?php echo e(!empty($order['created_at']) ? _dt($order['created_at']) : '—'); ?></td>
                                         <td>
                                             <div class="row-options">
                                                 <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>">

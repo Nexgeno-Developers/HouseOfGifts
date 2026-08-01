@@ -820,13 +820,13 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $data['order']          = $order;
         $data['packing_types']  = opsdesk_get_packing_types();
         $data['staff_members']  = opsdesk_get_staff_members();
-        $data['packed_by_name'] = opsdesk_get_assigned_name($order->packed_by ?? null);
+        $data['packed_by_name'] = opsdesk_get_assigned_name($order['packed_by'] ?? null);
         $data['can_edit']       = opsdesk_can_edit_orders();
-        $data['can_cancel_own'] = (int) $order->created_by === (int) get_staff_user_id()
-            && $order->status === 'pending';
+        $data['can_cancel_own'] = (int) $order['created_by'] === (int) get_staff_user_id()
+            && $order['status'] === 'pending';
         $data['can_cancel_any'] = $data['can_edit']
-            && in_array($order->status, ['pending', 'in_progress', 'packed'], true);
-        $data['next_statuses']  = $this->opsdesk_orders_model->get_next_statuses($order->status);
+            && in_array($order['status'], ['pending', 'in_progress', 'packed'], true);
+        $data['next_statuses']  = $this->opsdesk_orders_model->get_next_statuses($order['status']);
 
         $this->load->view('order_detail', $data);
     }
@@ -1020,11 +1020,32 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         }
 
         if ($this->input->post('packing_type')) {
-            $extra['packing_type'] = trim($this->input->post('packing_type'));
+            $packing_type = trim($this->input->post('packing_type'));
+            $packing_types = array_keys(opsdesk_get_packing_types());
+            if (in_array($packing_type, $packing_types, true)) {
+                $extra['packing_type'] = $packing_type;
+            }
         }
 
         if ($this->input->post('notes')) {
             $extra['notes'] = trim($this->input->post('notes'));
+        }
+
+        if ($this->input->post('delivery_date') !== null) {
+            $delivery_date = trim($this->input->post('delivery_date'));
+            if ($delivery_date !== '') {
+                $delivery_date = date('Y-m-d', strtotime($delivery_date));
+                if ($delivery_date === false) {
+                    $delivery_date = null;
+                }
+            } else {
+                $delivery_date = null;
+            }
+            $extra['delivery_date'] = $delivery_date;
+        }
+
+        if ($this->input->post('transport_medium_id') !== null) {
+            $extra['transport_medium_id'] = (int) $this->input->post('transport_medium_id');
         }
 
         $result = $this->opsdesk_orders_model->update_status(

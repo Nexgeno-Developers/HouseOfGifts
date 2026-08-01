@@ -150,7 +150,7 @@ function opsdesk_get_products_for_dropdown($options = [])
     }
 
     if ($inventory_only) {
-        $CI->db->where(db_prefix() . 'items.can_be_inventory', 'can_be_inventory');
+        $CI->db->where(db_prefix() . 'items.can_be_inventory', 1);
     }
 
     $CI->db->order_by(db_prefix() . 'items.commodity_code', 'ASC');
@@ -877,12 +877,12 @@ function opsdesk_notify_new_order($order_id, $created_by)
         return;
     }
 
-    $is_hp   = (int) $order->priority === 1;
+    $is_hp   = (int) $order['priority'] === 1;
     $key     = $is_hp ? 'opsdesk_notify_new_order_hp' : 'opsdesk_notify_new_order';
     $message = _l($key, [
-        (int) $order->id,
-        e($order->combo_name),
-        (int) $order->quantity,
+        (int) $order['id'],
+        e($order['combo_name']),
+        (int) $order['quantity'],
         e(get_staff_full_name((int) $created_by)),
     ]);
 
@@ -894,15 +894,15 @@ function opsdesk_notify_new_order($order_id, $created_by)
         add_notification([
             'description'    => $key,
             'additional_data' => serialize([
-                (int) $order->id,
-                e($order->combo_name),
-                (int) $order->quantity,
+                (int) $order['id'],
+                e($order['combo_name']),
+                (int) $order['quantity'],
                 e(get_staff_full_name((int) $created_by)),
             ]),
             'touserid'    => (int) $staff['staffid'],
             // NOTE: Perfex's notifications view wraps the link with
             // admin_url(), so we must NOT include the "admin/" prefix here.
-            'link'        => 'opsdesk/order/' . (int) $order->id,
+            'link'        => 'opsdesk/order/' . (int) $order['id'],
             'fromcompany' => 1,
         ]);
     }
@@ -929,29 +929,29 @@ function opsdesk_notify_status_change($order_id, $new_status, $changed_by)
         return;
     }
 
-    $created_by = (int) $order->created_by;
+    $created_by = (int) $order['created_by'];
     if ($created_by === (int) $changed_by) {
         return;
     }
 
-    $is_hp    = (int) $order->priority === 1;
+    $is_hp    = (int) $order['priority'] === 1;
     $key      = $is_hp ? 'opsdesk_notify_status_updated_hp' : 'opsdesk_notify_status_updated';
     $status_label = ucfirst(str_replace('_', ' ', $new_status));
     $message  = _l($key, [
-        (int) $order->id,
-        e($order->combo_name),
+        (int) $order['id'],
+        e($order['combo_name']),
         e($status_label),
     ]);
 
     add_notification([
         'description'     => $key,
         'additional_data' => serialize([
-            (int) $order->id,
-            e($order->combo_name),
+            (int) $order['id'],
+            e($order['combo_name']),
             e($status_label),
         ]),
         'touserid'    => $created_by,
-        'link'        => 'opsdesk/order/' . (int) $order->id,
+        'link'        => 'opsdesk/order/' . (int) $order['id'],
         'fromcompany' => 1,
     ]);
 }
@@ -979,10 +979,10 @@ function opsdesk_notify_cancellation($order_id, $cancelled_by)
         return;
     }
 
-    $created_by     = (int) $order->created_by;
+    $created_by     = (int) $order['created_by'];
     $creator_name   = get_staff_full_name($created_by);
     $canceller_name = get_staff_full_name((int) $cancelled_by);
-    $is_hp          = (int) $order->priority === 1;
+    $is_hp          = (int) $order['priority'] === 1;
 
     if ($created_by === (int) $cancelled_by) {
         $key = $is_hp ? 'opsdesk_notify_cancelled_by_sales_hp' : 'opsdesk_notify_cancelled_by_sales';
@@ -995,12 +995,12 @@ function opsdesk_notify_cancellation($order_id, $cancelled_by)
             add_notification([
                 'description'     => $key,
                 'additional_data' => serialize([
-                    (int) $order->id,
-                    e($order->combo_name),
+                    (int) $order['id'],
+                    e($order['combo_name']),
                     e($creator_name),
                 ]),
                 'touserid'    => (int) $staff['staffid'],
-                'link'        => 'opsdesk/order/' . (int) $order->id,
+                'link'        => 'opsdesk/order/' . (int) $order['id'],
                 'fromcompany' => 1,
             ]);
         }
@@ -1013,12 +1013,12 @@ function opsdesk_notify_cancellation($order_id, $cancelled_by)
     add_notification([
         'description'     => $key,
         'additional_data' => serialize([
-            (int) $order->id,
-            e($order->combo_name),
+            (int) $order['id'],
+            e($order['combo_name']),
             e($canceller_name),
         ]),
         'touserid'    => $created_by,
-        'link'        => 'opsdesk/order/' . (int) $order->id,
+        'link'        => 'opsdesk/order/' . (int) $order['id'],
         'fromcompany' => 1,
     ]);
 }

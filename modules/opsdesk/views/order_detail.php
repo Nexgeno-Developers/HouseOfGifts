@@ -1,5 +1,5 @@
 <?php // opsdesk order detail view - rebuilt
-<?php init_head(); ?>
+init_head(); ?>
 <link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
 <link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/order_detail.css'); ?>">
 <div id="wrapper">

@@ -63,15 +63,17 @@ function opsdesk_init_menu_items()
     $CI->app_menu->add_sidebar_children_item('opsdesk', [
         'slug'     => 'opsdesk-inventory-viewer',
         'name'     => _l('opsdesk_inventory_viewer'),
+        'icon'     => 'fa fa-search menu-icon',
         'href'     => admin_url('opsdesk/inventory'),
         'position' => 1,
     ]);
 
-    if (staff_can('create', 'opsdesk') || staff_can('edit', 'opsdesk')) {
+    if (opsdesk_can_create_orders()) {
         $CI->app_menu->add_sidebar_children_item('opsdesk', [
-            'slug'     => 'opsdesk-combos',
-            'name'     => _l('opsdesk_combos'),
-            'href'     => admin_url('opsdesk/combos'),
+            'slug'     => 'opsdesk-new-order',
+            'name'     => _l('opsdesk_new_order'),
+            'icon'     => 'fa fa-plus menu-icon',
+            'href'     => admin_url('opsdesk/order'),
             'position' => 2,
         ]);
     }
@@ -80,16 +82,18 @@ function opsdesk_init_menu_items()
         $CI->app_menu->add_sidebar_children_item('opsdesk', [
             'slug'     => 'opsdesk-orders',
             'name'     => _l('opsdesk_orders'),
+            'icon'     => 'fa fa-list menu-icon',
             'href'     => admin_url('opsdesk/orders'),
             'position' => 3,
         ]);
     }
 
-    if (opsdesk_can_create_orders()) {
+    if (staff_can('create', 'opsdesk') || staff_can('edit', 'opsdesk')) {
         $CI->app_menu->add_sidebar_children_item('opsdesk', [
-            'slug'     => 'opsdesk-new-order',
-            'name'     => _l('opsdesk_new_order'),
-            'href'     => admin_url('opsdesk/order'),
+            'slug'     => 'opsdesk-combos',
+            'name'     => _l('opsdesk_combos'),
+            'icon'     => 'fa fa-object-group menu-icon',
+            'href'     => admin_url('opsdesk/combos'),
             'position' => 4,
         ]);
     }
@@ -98,6 +102,7 @@ function opsdesk_init_menu_items()
         $CI->app_menu->add_sidebar_children_item('opsdesk', [
             'slug'     => 'opsdesk-settings',
             'name'     => _l('opsdesk_settings'),
+            'icon'     => 'fa fa-gears menu-icon',
             'href'     => admin_url('opsdesk/settings'),
             'position' => 5,
         ]);

@@ -237,18 +237,24 @@ init_head(); ?>
                                 <hr class="hr-panel-heading" />
 
                                 <!-- Tab navigation -->
+                                <?php
+                                $opsdesk_tab = $this->input->get('tab');
+                                $opsdesk_tab_assign   = ($opsdesk_tab === 'assign');
+                                $opsdesk_tab_priority = ($opsdesk_tab === 'priority');
+                                $opsdesk_tab_status   = (!$opsdesk_tab_assign && !$opsdesk_tab_priority);
+                                ?>
                                 <ul class="nav nav-tabs nav-tabs-horizontal" role="tablist">
-                                    <li role="presentation" class="active">
+                                    <li role="presentation"<?php echo $opsdesk_tab_status ? ' class="active"' : ''; ?>>
                                         <a href="#opsdesk-tab-status" aria-controls="opsdesk-tab-status" role="tab" data-toggle="tab">
                                             <?php echo _l('opsdesk_status'); ?>
                                         </a>
                                     </li>
-                                    <li role="presentation">
+                                    <li role="presentation"<?php echo $opsdesk_tab_assign ? ' class="active"' : ''; ?>>
                                         <a href="#opsdesk-tab-assign" aria-controls="opsdesk-tab-assign" role="tab" data-toggle="tab">
                                             <?php echo _l('opsdesk_assignment'); ?>
                                         </a>
                                     </li>
-                                    <li role="presentation">
+                                    <li role="presentation"<?php echo $opsdesk_tab_priority ? ' class="active"' : ''; ?>>
                                         <a href="#opsdesk-tab-priority" aria-controls="opsdesk-tab-priority" role="tab" data-toggle="tab">
                                             <?php echo _l('opsdesk_priority'); ?>
                                         </a>
@@ -257,7 +263,7 @@ init_head(); ?>
 
                                 <div class="tab-content tw-mt-3">
                                     <!-- Tab 1: Status Advance & Acceptance -->
-                                    <div role="tabpanel" class="tab-pane active" id="opsdesk-tab-status">
+                                    <div role="tabpanel" class="tab-pane<?php echo $opsdesk_tab_status ? ' active' : ''; ?>" id="opsdesk-tab-status">
                                         <?php if (!empty($can_edit)) { ?>
                                             <?php if ($order['status'] === 'pending') { ?>
                                             <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'opsdesk-accept-form row-margin-bottom']); ?>
@@ -320,9 +326,9 @@ init_head(); ?>
                                     </div>
 
                                     <!-- Tab 2: Staff Assignment -->
-                                    <div role="tabpanel" class="tab-pane" id="opsdesk-tab-assign">
-                                        <?php if (!empty($can_edit) && $order['status'] !== 'pending') { ?>
-                                        <?php echo form_open(admin_url('opsdesk/assign_order/' . $order['id']), ['id' => 'opsdesk_assign_form', 'class' => 'row-margin-bottom']); ?>
+                                    <div role="tabpanel" class="tab-pane<?php echo $opsdesk_tab_assign ? ' active' : ''; ?>" id="opsdesk-tab-assign">
+                                        <?php if (!empty($can_edit)) { ?>
+                                        <?php echo form_open(admin_url('opsdesk/assign_order/' . $order['id']), ['id' => 'opsdesk_staff_assign_form', 'class' => 'row-margin-bottom']); ?>
                                         <div class="form-group row-margin-bottom">
                                             <label><?php echo _l('opsdesk_packed_by'); ?></label>
                                             <select name="packed_by" id="opsdesk_packed_by" class="selectpicker" data-width="100%">
@@ -335,21 +341,11 @@ init_head(); ?>
                                                 <?php } ?>
                                             </select>
                                         </div>
-                                        <button type="submit" class="btn btn-primary btn-sm button-margin-r-b" id="opsdesk_assign_btn">
-                                            <?php echo _l('opsdesk_assign'); ?>
-                                        </button>
-                                        <?php echo form_close(); ?>
-                                        <?php } else { ?>
-                                        <div class="row-margin-bottom">
-                                            <strong><?php echo _l('opsdesk_packed_by'); ?>:</strong>
-                                            <span class="mleft10"><?php echo $packed_by_name ? e($packed_by_name) : '—'; ?></span>
-                                        </div>
-                                        <?php } ?>
-
                                         <div class="form-group row-margin-bottom">
                                             <label><?php echo _l('opsdesk_count_by'); ?></label>
-                                            <?php if (!empty($can_edit)) { ?>
-                                            <select name="count_by" id="opsdesk_count_by" class="selectpicker" data-width="100%">
+                                            <input type="hidden" name="count_by" id="opsdesk_count_by_hidden"
+                                                value="<?php echo !empty($order['count_by']) ? (int) $order['count_by'] : ''; ?>">
+                                            <select id="opsdesk_count_by" class="selectpicker" data-width="100%">
                                                 <option value=""><?php echo _l('opsdesk_unassigned'); ?></option>
                                                 <?php foreach ($staff_members as $sm) { ?>
                                                 <option value="<?php echo (int) $sm['staffid']; ?>"
@@ -358,51 +354,55 @@ init_head(); ?>
                                                 </option>
                                                 <?php } ?>
                                             </select>
-                                            <?php } else { ?>
-                                            <p><?php echo !empty($order['count_by']) ? e(get_staff_full_name($order['count_by'])) : '—'; ?></p>
-                                            <?php } ?>
                                         </div>
-
                                         <div class="form-group row-margin-bottom">
                                             <label for="opsdesk_carton_count"><?php echo _l('opsdesk_carton_count'); ?></label>
-                                            <?php if (!empty($can_edit)) { ?>
                                             <input type="number" name="carton_count" id="opsdesk_carton_count"
                                                 class="form-control"
                                                 min="1"
-                                                value="<?php echo (int) ($order['carton_count'] ?? 0); ?>"
+                                                value="<?php echo !empty($order['carton_count']) ? (int) $order['carton_count'] : ''; ?>"
                                                 placeholder="<?php echo _l('opsdesk_carton_count_placeholder'); ?>">
-                                            <?php } else { ?>
-                                            <p><?php echo !empty($order['carton_count']) ? (int) $order['carton_count'] : '—'; ?></p>
-                                            <?php } ?>
                                         </div>
+                                        <button type="submit" class="btn btn-primary btn-sm button-margin-r-b" id="opsdesk_assign_btn">
+                                            <?php echo _l('submit'); ?>
+                                        </button>
+                                        <?php echo form_close(); ?>
+                                        <?php } else { ?>
+                                        <div class="row-margin-bottom">
+                                            <strong><?php echo _l('opsdesk_packed_by'); ?>:</strong>
+                                            <span class="mleft10"><?php echo $packed_by_name ? e($packed_by_name) : '—'; ?></span>
+                                        </div>
+                                        <div class="row-margin-bottom">
+                                            <strong><?php echo _l('opsdesk_count_by'); ?>:</strong>
+                                            <span class="mleft10"><?php echo !empty($order['count_by']) ? e(get_staff_full_name($order['count_by'])) : '—'; ?></span>
+                                        </div>
+                                        <div class="row-margin-bottom">
+                                            <strong><?php echo _l('opsdesk_carton_count'); ?>:</strong>
+                                            <span class="mleft10"><?php echo !empty($order['carton_count']) ? (int) $order['carton_count'] : '—'; ?></span>
+                                        </div>
+                                        <?php } ?>
                                     </div>
 
                                     <!-- Tab 3: Priority Flag Toggle -->
-                                    <div role="tabpanel" class="tab-pane" id="opsdesk-tab-priority">
+                                    <div role="tabpanel" class="tab-pane<?php echo $opsdesk_tab_priority ? ' active' : ''; ?>" id="opsdesk-tab-priority">
                                         <?php if (!empty($can_edit)) { ?>
-                                        <div class="opsdesk-priority-block">
-                                            <button type="button" class="btn btn-default btn-sm button-margin-r-b" id="opsdesk_change_priority_btn">
-                                                <i class="fa fa-flag"></i> <?php echo _l('opsdesk_change_priority'); ?>
-                                            </button>
-                                            <div id="opsdesk_priority_inline" class="hide mtop10">
-                                                <div class="radio radio-primary radio-inline mright15 row-margin-bottom">
-                                                    <input type="radio" name="opsdesk_priority_inline" id="opsdesk_p_inline_normal" value="0"
-                                                        <?php echo (int) $order['priority'] === 0 ? 'checked' : ''; ?>>
-                                                    <label for="opsdesk_p_inline_normal"><?php echo _l('opsdesk_priority_normal'); ?></label>
-                                                </div>
-                                                <div class="radio radio-danger radio-inline mright15 row-margin-bottom">
-                                                    <input type="radio" name="opsdesk_priority_inline" id="opsdesk_p_inline_high" value="1"
-                                                        <?php echo (int) $order['priority'] === 1 ? 'checked' : ''; ?>>
-                                                    <label for="opsdesk_p_inline_high"><?php echo _l('opsdesk_priority_high'); ?></label>
-                                                </div>
-                                                <button type="button" class="btn btn-primary btn-sm button-margin-r-b" id="opsdesk_priority_save_btn">
-                                                    <?php echo _l('submit'); ?>
-                                                </button>
-                                                <button type="button" class="btn btn-default btn-sm button-margin-r-b" id="opsdesk_priority_cancel_btn">
-                                                    <?php echo _l('cancel'); ?>
-                                                </button>
+                                        <?php echo form_open(admin_url('opsdesk/update_priority/' . $order['id']), ['id' => 'opsdesk_priority_form', 'class' => 'row-margin-bottom']); ?>
+                                        <div class="form-group row-margin-bottom">
+                                            <div class="radio radio-primary radio-inline mright15">
+                                                <input type="radio" name="priority" id="opsdesk_p_inline_normal" value="0"
+                                                    <?php echo (int) $order['priority'] === 0 ? 'checked' : ''; ?>>
+                                                <label for="opsdesk_p_inline_normal"><?php echo _l('opsdesk_priority_normal'); ?></label>
+                                            </div>
+                                            <div class="radio radio-danger radio-inline mright15">
+                                                <input type="radio" name="priority" id="opsdesk_p_inline_high" value="1"
+                                                    <?php echo (int) $order['priority'] === 1 ? 'checked' : ''; ?>>
+                                                <label for="opsdesk_p_inline_high"><?php echo _l('opsdesk_priority_high'); ?></label>
                                             </div>
                                         </div>
+                                        <button type="submit" class="btn btn-primary btn-sm button-margin-r-b">
+                                            <?php echo _l('submit'); ?>
+                                        </button>
+                                        <?php echo form_close(); ?>
                                         <?php } else { ?>
                                         <p><?php echo e(opsdesk_get_priority_label($order['priority'])); ?></p>
                                         <?php } ?>
@@ -423,7 +423,9 @@ init_head(); ?>
                                         <div class="tw-flex tw-justify-between tw-items-center">
                                             <span class="label label-primary"><?php echo _l('opsdesk_bill_upload'); ?></span>
                                             <?php if (!empty($order['bill_file'])) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['bill_file'])); ?>" target="_blank">
+                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['bill_file'])); ?>"
+                                                data-opsdesk-preview="1"
+                                                data-opsdesk-type="<?php echo e(opsdesk_file_preview_type($order['bill_file'])); ?>">
                                                 <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
@@ -439,7 +441,9 @@ init_head(); ?>
                                                 <?php echo _l('opsdesk_payment_received'); ?>
                                             </span>
                                             <?php if (!empty($order['payment_file'])) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['payment_file'])); ?>" target="_blank">
+                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['payment_file'])); ?>"
+                                                data-opsdesk-preview="1"
+                                                data-opsdesk-type="<?php echo e(opsdesk_file_preview_type($order['payment_file'])); ?>">
                                                 <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
@@ -465,37 +469,70 @@ init_head(); ?>
                                         <div class="tw-flex tw-justify-between tw-items-center">
                                             <span class="label label-info"><?php echo _l('opsdesk_lr_copy_upload'); ?></span>
                                             <?php if (!empty($order['lr_copy'])) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['lr_copy'])); ?>" target="_blank">
+                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['lr_copy'])); ?>"
+                                                data-opsdesk-preview="1"
+                                                data-opsdesk-type="<?php echo e(opsdesk_file_preview_type($order['lr_copy'])); ?>">
                                                 <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
                                             <span class="text-muted">—</span>
                                             <?php } ?>
                                         </div>
+                                        <?php if (!empty($can_edit)) { ?>
                                         <div class="mtop10">
+                                            <?php echo form_open_multipart(admin_url('opsdesk/upload_lr_copy/' . $order['id']), ['id' => 'opsdesk_lr_copy_upload_form']); ?>
                                             <input type="file" name="lr_copy" id="opsdesk_lr_copy"
                                                 class="form-control"
                                                 accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx,.txt,.csv">
+                                            <button type="submit" class="btn btn-success btn-sm mtop5 button-margin-r-b">
+                                                <i class="fa fa-upload"></i> <?php echo _l('opsdesk_upload_lr_copy'); ?>
+                                            </button>
+                                            <?php echo form_close(); ?>
                                         </div>
+                                        <?php } ?>
                                     </div>
 
                                     <!-- Carton Photo -->
+                                    <?php
+                                    $carton_photos = opsdesk_parse_carton_photos($order['carton_photo'] ?? '');
+                                    $carton_gallery = [];
+                                    foreach ($carton_photos as $photo) {
+                                        $carton_gallery[] = [
+                                            'url'  => opsdesk_file_url($photo),
+                                            'type' => opsdesk_file_preview_type($photo),
+                                        ];
+                                    }
+                                    ?>
                                     <div class="opsdesk-attachment-item">
                                         <div class="tw-flex tw-justify-between tw-items-center">
                                             <span class="label label-warning"><?php echo _l('opsdesk_carton_photo_upload'); ?></span>
-                                            <?php if (!empty($order['carton_photo'])) { ?>
-                                            <a class="opsdesk-file-link" href="<?php echo e(opsdesk_file_url($order['carton_photo'])); ?>" target="_blank">
-                                                <i class="fa fa-file-pdf-o"></i> <?php echo _l('opsdesk_view_file'); ?>
+                                            <?php if (!empty($carton_gallery)) { ?>
+                                            <a class="opsdesk-file-link" href="<?php echo e($carton_gallery[0]['url']); ?>"
+                                                data-opsdesk-preview="1"
+                                                data-opsdesk-type="<?php echo e($carton_gallery[0]['type']); ?>"
+                                                data-opsdesk-gallery="<?php echo e(json_encode($carton_gallery)); ?>">
+                                                <i class="fa fa-file-image-o"></i>
+                                                <?php echo count($carton_gallery) > 1
+                                                    ? _l('opsdesk_view_files') . ' (' . count($carton_gallery) . ')'
+                                                    : _l('opsdesk_view_file'); ?>
                                             </a>
                                             <?php } else { ?>
                                             <span class="text-muted">—</span>
                                             <?php } ?>
                                         </div>
+                                        <?php if (!empty($can_edit)) { ?>
                                         <div class="mtop10">
-                                            <input type="file" name="carton_photo" id="opsdesk_carton_photo"
+                                            <?php echo form_open_multipart(admin_url('opsdesk/upload_carton_photo/' . $order['id']), ['id' => 'opsdesk_carton_photo_upload_form']); ?>
+                                            <input type="file" name="carton_photos[]" id="opsdesk_carton_photos"
                                                 class="form-control"
-                                                accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp,.doc,.docx,.xls,.xlsx,.txt,.csv">
+                                                accept="image/*"
+                                                multiple>
+                                            <button type="submit" class="btn btn-success btn-sm mtop5 button-margin-r-b">
+                                                <i class="fa fa-upload"></i> <?php echo _l('opsdesk_upload_carton_photo'); ?>
+                                            </button>
+                                            <?php echo form_close(); ?>
                                         </div>
+                                        <?php } ?>
                                     </div>
                                 </div>
                             </div>
@@ -508,33 +545,94 @@ init_head(); ?>
 </div>
 <input type="hidden" id="opsdesk_order_id" value="<?php echo (int) $order['id']; ?>">
 
+<div class="modal fade" id="opsdesk_file_preview_modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title"><?php echo _l('opsdesk_file_preview'); ?></h4>
+            </div>
+            <div class="modal-body">
+                <div id="opsdesk_preview_image_wrap" class="hide text-center">
+                    <img id="opsdesk_preview_image" src="" alt="">
+                </div>
+                <div id="opsdesk_preview_pdf_wrap" class="hide">
+                    <iframe id="opsdesk_preview_pdf" src="" title="<?php echo e(_l('opsdesk_file_preview')); ?>"></iframe>
+                </div>
+                <div id="opsdesk_preview_other_wrap" class="hide">
+                    <p><?php echo _l('opsdesk_no_preview'); ?></p>
+                    <a id="opsdesk_preview_download" href="#" class="btn btn-primary" download>
+                        <i class="fa fa-download"></i> <?php echo _l('opsdesk_download_file'); ?>
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default hide" id="opsdesk_preview_prev">
+                    <i class="fa fa-chevron-left"></i>
+                </button>
+                <span id="opsdesk_preview_counter" class="text-muted hide tw-mx-2"></span>
+                <button type="button" class="btn btn-default hide" id="opsdesk_preview_next">
+                    <i class="fa fa-chevron-right"></i>
+                </button>
+                <button type="button" class="btn btn-default" data-dismiss="modal"><?php echo _l('close'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php init_tail(); ?>
-
-<script>
-    // Globals expected by opsdesk_orders.js (form IIFE is guarded by their
-    // absence, but they must be declared to avoid ReferenceErrors on load).
-    var opsdeskOrderStockUrl = '';
-    var opsdeskProductDetailsUrl = '';
-    var opsdeskClientsUrl = '';
-    var opsdeskOrderPrefill = {};
-    var opsdeskOrderLang = {};
-    // Base admin URL used by the priority-change IIFE (no global admin_url() in JS).
-    var opsdeskOrderBaseUrl = '<?php echo admin_url('opsdesk/'); ?>';
-</script>
-
-<script src="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/js/opsdesk_orders.js'); ?>"></script>
 
 <script>
       (function () {
           'use strict';
 
+          // Copy selectpicker values into named fields before the assignment form posts.
+          document.addEventListener('submit', function (e) {
+              var form = e.target;
+              if (!form || form.id !== 'opsdesk_staff_assign_form') {
+                  return;
+              }
+              var countSelect = document.getElementById('opsdesk_count_by');
+              var countHidden = document.getElementById('opsdesk_count_by_hidden');
+              var packedSelect = document.getElementById('opsdesk_packed_by');
+              var countVal = '';
+              var packedVal = '';
+              if (typeof jQuery !== 'undefined') {
+                  countVal = jQuery('#opsdesk_count_by').val() || '';
+                  packedVal = jQuery('#opsdesk_packed_by').val() || '';
+              } else {
+                  countVal = countSelect ? countSelect.value : '';
+                  packedVal = packedSelect ? packedSelect.value : '';
+              }
+              if (countHidden) {
+                  countHidden.value = countVal;
+              }
+              if (packedSelect) {
+                  packedSelect.value = packedVal;
+              }
+          }, true);
+
+          if (typeof jQuery !== 'undefined') {
+              jQuery(function ($) {
+                  $(document).on('changed.bs.select', '#opsdesk_count_by', function () {
+                      var hidden = document.getElementById('opsdesk_count_by_hidden');
+                      if (hidden) {
+                          hidden.value = $(this).val() || '';
+                      }
+                  });
+              });
+          }
+
 var paymentRequiredMsg = <?php echo json_encode(_l('opsdesk_payment_required_for_completion')); ?>;
            var hasPaymentFile = <?php echo !empty($order['payment_file']) ? 'true' : 'false'; ?>;
+           var hasLrCopy = <?php echo !empty($order['lr_copy']) ? 'true' : 'false'; ?>;
+           var hasCartonPhoto = <?php echo !empty($carton_photos) ? 'true' : 'false'; ?>;
            var lrCopyRequiredMsg = <?php echo json_encode(_l('opsdesk_lr_copy_required_for_completion')); ?>;
            var cartonPhotoRequiredMsg = <?php echo json_encode(_l('opsdesk_carton_photo_required_for_completion')); ?>;
            var cartonCountRequiredMsg = <?php echo json_encode(_l('opsdesk_carton_count_required_for_completion')); ?>;
            var packedByRequiredMsg = <?php echo json_encode(_l('opsdesk_packed_by_required')); ?>;
            var countByRequiredMsg = <?php echo json_encode(_l('opsdesk_count_by_required_for_completion')); ?>;
+           var hasCountBy = <?php echo !empty($order['count_by']) ? 'true' : 'false'; ?>;
 
            document.addEventListener('submit', function (e) {
                var form = e.target && e.target.closest
@@ -570,31 +668,25 @@ var paymentRequiredMsg = <?php echo json_encode(_l('opsdesk_payment_required_for
                     }
 
                     // Prevent completion if LR copy missing
-                    if (newStatus === 'completed' && hasPaymentFile) {
-                        var lrCopyInput = document.querySelector('input[name="lr_copy"]');
-                        if (!lrCopyInput || !lrCopyInput.value) {
-                            e.preventDefault();
-                            if (typeof alert_float === 'function') {
-                                alert_float('warning', lrCopyRequiredMsg);
-                            } else {
-                                alert(lrCopyRequiredMsg);
-                            }
-                            return;
+                    if (newStatus === 'completed' && !hasLrCopy) {
+                        e.preventDefault();
+                        if (typeof alert_float === 'function') {
+                            alert_float('warning', lrCopyRequiredMsg);
+                        } else {
+                            alert(lrCopyRequiredMsg);
                         }
+                        return;
                     }
 
                     // Prevent completion if carton photo missing
-                    if (newStatus === 'completed' && hasPaymentFile) {
-                        var cartonPhotoInput = document.querySelector('input[name="carton_photo"]');
-                        if (!cartonPhotoInput || !cartonPhotoInput.value) {
-                            e.preventDefault();
-                            if (typeof alert_float === 'function') {
-                                alert_float('warning', cartonPhotoRequiredMsg);
-                            } else {
-                                alert(cartonPhotoRequiredMsg);
-                            }
-                            return;
+                    if (newStatus === 'completed' && !hasCartonPhoto) {
+                        e.preventDefault();
+                        if (typeof alert_float === 'function') {
+                            alert_float('warning', cartonPhotoRequiredMsg);
+                        } else {
+                            alert(cartonPhotoRequiredMsg);
                         }
+                        return;
                     }
 
                     // Prevent completion if carton count missing
@@ -611,10 +703,13 @@ var paymentRequiredMsg = <?php echo json_encode(_l('opsdesk_payment_required_for
                         }
                     }
 
-                    // Prevent completion if counted by missing
-                    if (newStatus === 'completed' && hasPaymentFile) {
-                        var countByInput = document.querySelector('select[name="count_by"]');
-                        if (!countByInput || !countByInput.value) {
+                    // Prevent shipping or completion if counted by missing
+                    if (newStatus === 'shipped' || newStatus === 'completed') {
+                        var countByInput = document.getElementById('opsdesk_count_by_hidden')
+                            || document.getElementById('opsdesk_count_by')
+                            || document.querySelector('select[name="count_by"]');
+                        var countByValue = countByInput ? String(countByInput.value || '') : '';
+                        if (!hasCountBy && !countByValue) {
                             e.preventDefault();
                             if (typeof alert_float === 'function') {
                                 alert_float('warning', countByRequiredMsg);
@@ -705,5 +800,140 @@ var paymentRequiredMsg = <?php echo json_encode(_l('opsdesk_payment_required_for
 
           // Initialize after bootstrap-select finishes its own setup.
           setTimeout(syncAllAcceptButtons, 300);
+      })();
+
+      (function () {
+          'use strict';
+
+          var galleryItems = [];
+          var galleryIndex = 0;
+
+          function guessPreviewType(url) {
+              var clean = String(url || '').split('?')[0].toLowerCase();
+              if (/\.(jpe?g|png|gif|bmp|webp)$/.test(clean)) {
+                  return 'image';
+              }
+              if (/\.pdf$/.test(clean)) {
+                  return 'pdf';
+              }
+              return 'other';
+          }
+
+          function parseGallery(raw) {
+              if (!raw) {
+                  return [];
+              }
+              try {
+                  var parsed = JSON.parse(raw);
+                  return Array.isArray(parsed) ? parsed : [];
+              } catch (err) {
+                  return [];
+              }
+          }
+
+          function setGalleryControls() {
+              var prev = document.getElementById('opsdesk_preview_prev');
+              var next = document.getElementById('opsdesk_preview_next');
+              var counter = document.getElementById('opsdesk_preview_counter');
+              var showNav = galleryItems.length > 1;
+              if (prev) { prev.classList.toggle('hide', !showNav); }
+              if (next) { next.classList.toggle('hide', !showNav); }
+              if (counter) {
+                  counter.classList.toggle('hide', !showNav);
+                  counter.textContent = showNav
+                      ? (galleryIndex + 1) + ' / ' + galleryItems.length
+                      : '';
+              }
+          }
+
+          function renderPreview(url, type) {
+              var imgWrap = document.getElementById('opsdesk_preview_image_wrap');
+              var pdfWrap = document.getElementById('opsdesk_preview_pdf_wrap');
+              var otherWrap = document.getElementById('opsdesk_preview_other_wrap');
+              var img = document.getElementById('opsdesk_preview_image');
+              var pdf = document.getElementById('opsdesk_preview_pdf');
+              var download = document.getElementById('opsdesk_preview_download');
+              if (!imgWrap || !pdfWrap || !otherWrap) {
+                  return;
+              }
+
+              imgWrap.classList.add('hide');
+              pdfWrap.classList.add('hide');
+              otherWrap.classList.add('hide');
+              if (img) { img.removeAttribute('src'); }
+              if (pdf) { pdf.removeAttribute('src'); }
+
+              if (type === 'image') {
+                  if (img) { img.src = url; }
+                  imgWrap.classList.remove('hide');
+              } else if (type === 'pdf') {
+                  if (pdf) { pdf.src = url; }
+                  pdfWrap.classList.remove('hide');
+              } else {
+                  if (download) { download.href = url; }
+                  otherWrap.classList.remove('hide');
+              }
+          }
+
+          function showGalleryItem(index) {
+              if (!galleryItems.length) {
+                  return;
+              }
+              galleryIndex = (index + galleryItems.length) % galleryItems.length;
+              var item = galleryItems[galleryIndex] || {};
+              var url = item.url || '';
+              var type = item.type || guessPreviewType(url);
+              renderPreview(url, type);
+              setGalleryControls();
+          }
+
+          function showFilePreview(url, type, gallery) {
+              galleryItems = gallery && gallery.length ? gallery : [{ url: url, type: type }];
+              galleryIndex = 0;
+              showGalleryItem(0);
+              if (typeof jQuery !== 'undefined') {
+                  jQuery('#opsdesk_file_preview_modal').modal('show');
+              }
+          }
+
+          document.addEventListener('click', function (e) {
+              var link = e.target && e.target.closest
+                  ? e.target.closest('a.opsdesk-file-link')
+                  : null;
+              if (!link) {
+                  return;
+              }
+              var url = link.getAttribute('href') || '';
+              if (!url || url === '#') {
+                  return;
+              }
+              e.preventDefault();
+              var type = link.getAttribute('data-opsdesk-type') || guessPreviewType(url);
+              var gallery = parseGallery(link.getAttribute('data-opsdesk-gallery'));
+              showFilePreview(url, type, gallery);
+          }, true);
+
+          var prevBtn = document.getElementById('opsdesk_preview_prev');
+          var nextBtn = document.getElementById('opsdesk_preview_next');
+          if (prevBtn) {
+              prevBtn.addEventListener('click', function () {
+                  showGalleryItem(galleryIndex - 1);
+              });
+          }
+          if (nextBtn) {
+              nextBtn.addEventListener('click', function () {
+                  showGalleryItem(galleryIndex + 1);
+              });
+          }
+
+          if (typeof jQuery !== 'undefined') {
+              jQuery('#opsdesk_file_preview_modal').on('hidden.bs.modal', function () {
+                  jQuery('#opsdesk_preview_image').removeAttr('src');
+                  jQuery('#opsdesk_preview_pdf').removeAttr('src');
+                  galleryItems = [];
+                  galleryIndex = 0;
+                  setGalleryControls();
+              });
+          }
       })();
   </script>

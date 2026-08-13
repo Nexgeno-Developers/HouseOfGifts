@@ -1151,6 +1151,22 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
      */
     public function upload_payment_file($order_id = '')
     {
+        $this->upload_order_attachment($order_id, 'payment_file');
+    }
+
+    /**
+     * POST: upload / replace the LR copy for an order.
+     */
+    public function upload_lr_copy($order_id = '')
+    {
+        $this->upload_order_attachment($order_id, 'lr_copy');
+    }
+
+    /**
+     * POST: upload one or more carton photos (appended, not replaced).
+     */
+    public function upload_carton_photo($order_id = '')
+    {
         if (!opsdesk_can_edit_orders()) {
             access_denied('opsdesk_orders');
         }
@@ -1165,19 +1181,54 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             redirect(admin_url('opsdesk/orders'));
         }
 
-        if (empty($_FILES['payment_file']) || empty($_FILES['payment_file']['name'])) {
+        $field = isset($_FILES['carton_photos']) ? 'carton_photos' : 'carton_photo';
+        $upload = opsdesk_handle_multi_upload($field);
+        if (!$upload['success']) {
+            set_alert('warning', _l('opsdesk_upload_failed') . ' ' . ($upload['message'] ?? ''));
+            redirect(admin_url('opsdesk/order/' . $order_id));
+        }
+
+        $this->opsdesk_orders_model->append_carton_photos((int) $order_id, $upload['files']);
+
+        set_alert('success', _l('opsdesk_file_uploaded'));
+        redirect(admin_url('opsdesk/order/' . $order_id));
+    }
+
+    /**
+     * Shared handler for order attachment uploads.
+     *
+     * @param mixed  $order_id
+     * @param string $field
+     */
+    private function upload_order_attachment($order_id, $field)
+    {
+        if (!opsdesk_can_edit_orders()) {
+            access_denied('opsdesk_orders');
+        }
+
+        $allowed = ['payment_file', 'lr_copy'];
+        if (!in_array($field, $allowed, true) || !is_numeric($order_id)) {
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        $order = $this->opsdesk_orders_model->get((int) $order_id);
+        if (!$order) {
+            set_alert('warning', _l('opsdesk_order_not_found'));
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        if (empty($_FILES[$field]) || empty($_FILES[$field]['name'])) {
             set_alert('warning', _l('opsdesk_upload_failed'));
             redirect(admin_url('opsdesk/order/' . $order_id));
         }
 
-        $upload = opsdesk_handle_upload('payment_file');
+        $upload = opsdesk_handle_upload($field);
         if (!$upload['success']) {
             set_alert('warning', _l('opsdesk_upload_failed') . ' ' . $upload['message']);
             redirect(admin_url('opsdesk/order/' . $order_id));
         }
 
-        // Replace existing payment_file if present
-        $this->opsdesk_orders_model->update_payment_file((int) $order_id, $upload['file']);
+        $this->opsdesk_orders_model->update_order_file((int) $order_id, $field, $upload['file']);
 
         set_alert('success', _l('opsdesk_file_uploaded'));
         redirect(admin_url('opsdesk/order/' . $order_id));
@@ -1232,7 +1283,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             set_alert('warning', $result['message'] ?? _l('opsdesk_problem_updating'));
         }
 
-        redirect(admin_url('opsdesk/order/' . $order_id));
+        redirect(admin_url('opsdesk/order/' . $order_id . '?tab=priority'));
     }
 
     /**
@@ -1255,11 +1306,23 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             redirect(admin_url('opsdesk/orders'));
         }
 
-        $packed_by = (int) $this->input->post('packed_by');
+        $packed_by    = (int) $this->input->post('packed_by');
+        $count_by     = $this->input->post('count_by');
+        $carton_count = $this->input->post('carton_count');
 
-        $result = $this->opsdesk_orders_model->assign(
+        // Read raw POST as well — XSS filtering can return false for missing keys.
+        if ($count_by === false && isset($_POST['count_by'])) {
+            $count_by = $_POST['count_by'];
+        }
+        if ($carton_count === false && isset($_POST['carton_count'])) {
+            $carton_count = $_POST['carton_count'];
+        }
+
+        $result = $this->opsdesk_orders_model->save_staff_assignment(
             (int) $order_id,
             $packed_by,
+            $count_by,
+            $carton_count,
             get_staff_user_id()
         );
 
@@ -1274,7 +1337,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             set_alert('warning', $result['message'] ?? _l('opsdesk_problem_updating'));
         }
 
-        redirect(admin_url('opsdesk/order/' . $order_id));
+        redirect(admin_url('opsdesk/order/' . $order_id . '?tab=assign'));
     }
 
     /**

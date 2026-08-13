@@ -502,6 +502,15 @@ class Opsdesk_orders_model extends App_Model
             return ['success' => false, 'message' => _l('opsdesk_invalid_status_transition')];
         }
 
+        // Counted-by must be set before the order can ship (and still required
+        // if Completed is chosen without going through Shipped).
+        if (in_array($new_status, ['shipped', 'completed'], true)) {
+            $count_by = !empty($extra['count_by']) ? (int) $extra['count_by'] : (int) ($order['count_by'] ?? 0);
+            if ($count_by <= 0) {
+                return ['success' => false, 'message' => _l('opsdesk_count_by_required_for_completion')];
+            }
+        }
+
         // Validate completion requirements.
         if ($new_status === 'completed') {
             if (empty($order['payment_file'])) {
@@ -513,14 +522,11 @@ class Opsdesk_orders_model extends App_Model
             if (empty($order['lr_copy']) && empty($extra['lr_copy'])) {
                 return ['success' => false, 'message' => _l('opsdesk_lr_copy_required_for_completion')];
             }
-            if (empty($order['carton_photo']) && empty($extra['carton_photo'])) {
+            if (empty(opsdesk_parse_carton_photos($order['carton_photo'] ?? '')) && empty($extra['carton_photo'])) {
                 return ['success' => false, 'message' => _l('opsdesk_carton_photo_required_for_completion')];
             }
             if (empty($order['carton_count']) && empty($extra['carton_count'])) {
                 return ['success' => false, 'message' => _l('opsdesk_carton_count_required_for_completion')];
-            }
-            if (empty($extra['count_by'])) {
-                return ['success' => false, 'message' => _l('opsdesk_count_by_required_for_completion')];
             }
         }
 
@@ -541,7 +547,13 @@ class Opsdesk_orders_model extends App_Model
                  foreach ($order['items'] as $item) {
                      $qty = (float) $item['quantity_reserved'];
                      $inv = $this->opsdesk_inventory_model->get_by_sku($item['sku']);
-                     if (!$inv || (float) $inv['quantity_reserved'] < $qty) {
+                     $reserved = 0.0;
+                     if (is_object($inv) && isset($inv->quantity_reserved)) {
+                         $reserved = (float) $inv->quantity_reserved;
+                     } elseif (is_array($inv) && isset($inv['quantity_reserved'])) {
+                         $reserved = (float) $inv['quantity_reserved'];
+                     }
+                     if (!$inv || $reserved < $qty) {
                          $this->db->trans_rollback();
 
                          return ['success' => false, 'message' => _l('opsdesk_insufficient_reserved', $item['sku'])];
@@ -597,7 +609,9 @@ class Opsdesk_orders_model extends App_Model
                     $update['lr_copy'] = $extra['lr_copy'];
                 }
                 if (!empty($extra['carton_photo'])) {
-                    $update['carton_photo'] = $extra['carton_photo'];
+                    $photos   = opsdesk_parse_carton_photos($order['carton_photo'] ?? '');
+                    $photos[] = $extra['carton_photo'];
+                    $update['carton_photo'] = opsdesk_encode_carton_photos($photos);
                 }
                 if (!empty($extra['carton_count'])) {
                     $update['carton_count'] = (int) $extra['carton_count'];
@@ -628,7 +642,7 @@ class Opsdesk_orders_model extends App_Model
              log_activity('OpsDesk Order Status Updated [ID:' . $order_id . ', Status:' . $new_status . ']');
 
             return ['success' => true];
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $this->db->trans_rollback();
 
             return ['success' => false, 'message' => $e->getMessage()];
@@ -638,32 +652,80 @@ class Opsdesk_orders_model extends App_Model
     /**
      * Assign / reassign the staff member responsible for packing an order.
      *
-     * Persists `packed_by` independently of any status change and logs the
-     * assignment in the status history so it is auditable.
+     * Persists packed_by, count_by, and carton_count independently of any
+     * status change and logs the assignment in the status history.
      *
-     * @param int $order_id
-     * @param int $staff_id   the newly assigned packer (0 = unassign)
-     * @param int $by_staff_id the staff performing the assignment
+     * @param int      $order_id
+     * @param int      $staff_id    the newly assigned packer (0 = unassign)
+     * @param int      $by_staff_id the staff performing the assignment
+     * @param array    $extra       optional count_by / carton_count
      * @return array{success:bool,message?:string}
      */
-    public function assign($order_id, $staff_id, $by_staff_id)
+    public function assign($order_id, $staff_id, $by_staff_id, $extra = [])
     {
+        return $this->save_staff_assignment(
+            $order_id,
+            $staff_id,
+            $extra['count_by'] ?? null,
+            $extra['carton_count'] ?? null,
+            $by_staff_id,
+            array_key_exists('count_by', $extra),
+            array_key_exists('carton_count', $extra)
+        );
+    }
+
+    /**
+     * Save packer, counted-by staff, and carton count for an order.
+     *
+     * @param int         $order_id
+     * @param int         $packed_by
+     * @param mixed       $count_by
+     * @param mixed       $carton_count
+     * @param int         $by_staff_id
+     * @param bool        $save_count_by
+     * @param bool        $save_carton_count
+     * @return array{success:bool,message?:string}
+     */
+    public function save_staff_assignment(
+        $order_id,
+        $packed_by,
+        $count_by,
+        $carton_count,
+        $by_staff_id,
+        $save_count_by = true,
+        $save_carton_count = true
+    ) {
         $order = $this->get($order_id);
         if (!$order) {
             return ['success' => false, 'message' => _l('opsdesk_order_not_found')];
         }
 
-        $staff_id = (int) $staff_id;
-
-        $this->db->where('id', (int) $order_id);
-        $this->db->update($this->table_orders, [
-            'packed_by'  => $staff_id > 0 ? $staff_id : null,
+        $packed_by = (int) $packed_by;
+        $update    = [
+            'packed_by'  => $packed_by > 0 ? $packed_by : null,
             'updated_by' => (int) $by_staff_id,
             'updated_at' => date('Y-m-d H:i:s'),
-        ]);
+        ];
+
+        if ($save_count_by) {
+            $count_by_id = (int) $count_by;
+            $update['count_by'] = $count_by_id > 0 ? $count_by_id : null;
+        }
+
+        if ($save_carton_count) {
+            if ($carton_count === '' || $carton_count === null || $carton_count === false) {
+                $update['carton_count'] = null;
+            } else {
+                $carton = (int) $carton_count;
+                $update['carton_count'] = $carton > 0 ? $carton : null;
+            }
+        }
+
+        $this->db->where('id', (int) $order_id);
+        $this->db->update($this->table_orders, $update);
 
         if ($this->db->affected_rows() > 0) {
-            $assigned_name = $staff_id > 0 ? get_staff_full_name($staff_id) : _l('opsdesk_unassigned');
+            $assigned_name = $packed_by > 0 ? get_staff_full_name($packed_by) : _l('opsdesk_unassigned');
             $this->log_status_change(
                 (int) $order_id,
                 $order['status'],
@@ -672,7 +734,7 @@ class Opsdesk_orders_model extends App_Model
                 _l('opsdesk_assigned_note', [$assigned_name])
             );
 
-            log_activity('OpsDesk Order Assigned [ID:' . $order_id . ', Packed By:' . $staff_id . ']');
+            log_activity('OpsDesk Order Assigned [ID:' . $order_id . ', Packed By:' . $packed_by . ']');
         }
 
         return ['success' => true];
@@ -731,24 +793,78 @@ class Opsdesk_orders_model extends App_Model
      */
     public function update_payment_file($order_id, $file_name)
     {
-        if (!is_numeric($order_id) || empty($file_name)) {
+        return $this->update_order_file($order_id, 'payment_file', $file_name);
+    }
+
+    /**
+     * Store an uploaded file name on an order attachment column.
+     *
+     * @param int    $order_id
+     * @param string $field     payment_file|lr_copy|carton_photo
+     * @param string $file_name
+     * @return bool
+     */
+    public function update_order_file($order_id, $field, $file_name)
+    {
+        $allowed = ['payment_file', 'lr_copy', 'carton_photo'];
+        if (!is_numeric($order_id) || empty($file_name) || !in_array($field, $allowed, true)) {
             return false;
+        }
+
+        if ($field === 'carton_photo') {
+            return $this->append_carton_photos($order_id, [$file_name]);
         }
 
         $this->db->where('id', (int) $order_id);
         $this->db->update($this->table_orders, [
-            'payment_file' => $file_name,
-            'updated_by'   => get_staff_user_id(),
-            'updated_at'   => date('Y-m-d H:i:s'),
+            $field       => $file_name,
+            'updated_by' => get_staff_user_id(),
+            'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         if ($this->db->affected_rows() > 0) {
-            log_activity('OpsDesk Order Payment File Updated [ID:' . $order_id . ']');
+            log_activity('OpsDesk Order File Updated [ID:' . $order_id . ', Field:' . $field . ']');
 
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Append carton photo filenames to an order (does not replace existing).
+     *
+     * @param int   $order_id
+     * @param array $new_files
+     * @return bool
+     */
+    public function append_carton_photos($order_id, $new_files)
+    {
+        if (!is_numeric($order_id) || empty($new_files)) {
+            return false;
+        }
+
+        $order = $this->get($order_id);
+        if (!$order) {
+            return false;
+        }
+
+        $merged = array_merge(
+            opsdesk_parse_carton_photos($order['carton_photo'] ?? ''),
+            (array) $new_files
+        );
+        $encoded = opsdesk_encode_carton_photos($merged);
+
+        $this->db->where('id', (int) $order_id);
+        $this->db->update($this->table_orders, [
+            'carton_photo' => $encoded,
+            'updated_by'   => get_staff_user_id(),
+            'updated_at'   => date('Y-m-d H:i:s'),
+        ]);
+
+        log_activity('OpsDesk Order Carton Photos Updated [ID:' . $order_id . ']');
+
+        return true;
     }
 
     /**

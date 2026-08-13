@@ -80,22 +80,12 @@
                                     </option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <select name="sort_by_delivery_date" class="selectpicker" data-width="100%"
-                                    onchange="this.form.submit()">
-                                    <option value=""><?php echo _l('opsdesk_sort_by_delivery_date'); ?></option>
-                                    <option value="asc" <?php echo (string) $delivery_sort === 'asc' ? 'selected' : ''; ?>>
-                                        <?php echo _l('opsdesk_sort_by_delivery_date_asc'); ?>
-                                    </option>
-                                    <option value="desc" <?php echo (string) $delivery_sort === 'desc' ? 'selected' : ''; ?>>
-                                        <?php echo _l('opsdesk_sort_by_delivery_date_desc'); ?>
-                                    </option>
-                                </select>
-                            </div>
                         </form>
 
-                        <div class="table-responsive">
-                        <table class="table table-striped opsdesk-orders-table">
+                        <div class="panel-table-full">
+                        <table class="table table-striped opsdesk-orders-table"
+                            data-order-col="0"
+                            data-order-type="desc">
                             <thead>
                                 <tr>
                                     <th><?php echo _l('opsdesk_order_id'); ?></th>
@@ -112,19 +102,19 @@
                                     <th><?php echo _l('opsdesk_created_by'); ?></th>
                                     <?php } ?>
                                     <th><?php echo _l('opsdesk_created_at'); ?></th>
-                                    <th><?php echo _l('opsdesk_actions'); ?></th>
+                                    <th class="options"><?php echo _l('opsdesk_actions'); ?></th>
                                 </tr>
                             </thead>
                                 <tbody>
                                     <?php foreach ($orders as $order) { ?>
                                     <tr>
-                                         <td>
+                                         <td data-order="<?php echo (int) $order['id']; ?>">
                                             <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>">
                                                 #<?php echo (int) $order['id']; ?>
                                             </a>
                                         </td>
-                                        <td><?php echo opsdesk_get_priority_badge($order['priority']); ?></td>
-                                        <td>
+                                        <td data-order="<?php echo (int) $order['priority']; ?>"><?php echo opsdesk_get_priority_badge($order['priority']); ?></td>
+                                        <td data-order="<?php echo e($order['delivery_date'] ?? ''); ?>">
                                             <?php if (!empty($order['delivery_date'])) { ?>
                                                 <?php
                                                 $is_high = (int) $order['priority'] === 1;
@@ -137,7 +127,7 @@
                                         </td>
                                         <td><?php echo e($order['combo_name'] ?: '—'); ?></td>
                                         <td><?php echo e(!empty($order['customer_name']) ? $order['customer_name'] : '—'); ?></td>
-                                        <td><?php echo (int) $order['quantity']; ?></td>
+                                        <td data-order="<?php echo (int) $order['quantity']; ?>"><?php echo (int) $order['quantity']; ?></td>
                                         <td>
                                             <span class="label label-tag tag-id-1">
                                                 <?php echo e(opsdesk_get_packing_type_label($order['packing_type'])); ?>
@@ -158,7 +148,7 @@
                                         <?php if (!empty($global_view)) { ?>
                                          <td><?php echo e(!empty($order['creator_name']) ? $order['creator_name'] : '—'); ?></td>
                                         <?php } ?>
-                                         <td><?php echo e(!empty($order['created_at']) ? _dt($order['created_at']) : '—'); ?></td>
+                                         <td data-order="<?php echo e($order['created_at'] ?? ''); ?>"><?php echo e(!empty($order['created_at']) ? _dt($order['created_at']) : '—'); ?></td>
                                         <td>
                                             <div class="row-options">
                                                 <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>">
@@ -225,13 +215,6 @@
                                         </td>
                                     </tr>
                                     <?php } ?>
-                                    <?php if (empty($orders)) { ?>
-                                    <tr>
-                                        <td colspan="<?php echo !empty($global_view) ? 13 : 12; ?>" class="text-center text-muted">
-                                            <?php echo _l('opsdesk_no_orders'); ?>
-                                        </td>
-                                    </tr>
-                                    <?php } ?>
                                 </tbody>
                             </table>
                         </div>
@@ -268,7 +251,37 @@
         }
     }
 
+    function initOrdersTable() {
+        var $table = typeof jQuery !== "undefined" ? jQuery(".opsdesk-orders-table") : null;
+        if (!$table || !$table.length) {
+            return;
+        }
+
+        try {
+            if (typeof appDataTableInline === "function") {
+                appDataTableInline($table, {
+                    supportsButtons: true,
+                    supportsLoading: true,
+                    autoWidth: false,
+                    order: [[0, "desc"]],
+                    columnDefs: [
+                        { orderable: false, targets: -1 },
+                        { searchable: false, targets: -1 }
+                    ]
+                });
+            } else if (typeof initDataTableInline === "function") {
+                initDataTableInline($table);
+            }
+        } catch (err) {
+            // Keep the table visible even if DataTables fails to start.
+        }
+
+        $table.parents(".table-loading").removeClass("table-loading");
+        $table.removeClass("dt-table-loading table-loading");
+    }
+
     function init() {
+        initOrdersTable();
         syncAll();
 
         // Native capture-phase change listener: fires even if a bootstrap-select
@@ -305,7 +318,9 @@
         }, true);
     }
 
-    if (document.readyState === "loading") {
+    if (typeof jQuery !== "undefined") {
+        jQuery(init);
+    } else if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);
     } else {
         init();

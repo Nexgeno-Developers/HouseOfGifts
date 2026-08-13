@@ -747,6 +747,150 @@ function opsdesk_handle_upload($field)
 }
 
 /**
+ * Handle one or more files from a single input (name="field[]" or name="field").
+ *
+ * @param string $field
+ * @return array{success:bool,files:array,message?:string}
+ */
+function opsdesk_handle_multi_upload($field)
+{
+    if (!isset($_FILES[$field]) || empty($_FILES[$field]['name'])) {
+        return ['success' => false, 'files' => [], 'message' => _l('opsdesk_upload_failed')];
+    }
+
+    $bag = $_FILES[$field];
+    if (!is_array($bag['name'])) {
+        $bag = [
+            'name'     => [$bag['name']],
+            'type'     => [$bag['type']],
+            'tmp_name' => [$bag['tmp_name']],
+            'error'    => [$bag['error']],
+            'size'     => [$bag['size']],
+        ];
+    }
+
+    $saved  = [];
+    $errors = [];
+    $count  = count($bag['name']);
+
+    for ($i = 0; $i < $count; $i++) {
+        if (empty($bag['name'][$i]) || (int) $bag['error'][$i] === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+
+        $_FILES['_opsdesk_multi'] = [
+            'name'     => $bag['name'][$i],
+            'type'     => $bag['type'][$i],
+            'tmp_name' => $bag['tmp_name'][$i],
+            'error'    => $bag['error'][$i],
+            'size'     => $bag['size'][$i],
+        ];
+
+        $result = opsdesk_handle_upload('_opsdesk_multi');
+        if (!empty($result['success']) && !empty($result['file'])) {
+            $saved[] = $result['file'];
+        } else {
+            $errors[] = $bag['name'][$i] . ': ' . ($result['message'] ?? _l('opsdesk_upload_failed'));
+        }
+    }
+
+    unset($_FILES['_opsdesk_multi']);
+
+    if (empty($saved)) {
+        return [
+            'success' => false,
+            'files'   => [],
+            'message' => !empty($errors) ? implode(' ', $errors) : _l('opsdesk_upload_failed'),
+        ];
+    }
+
+    return [
+        'success' => true,
+        'files'   => $saved,
+        'message' => !empty($errors) ? implode(' ', $errors) : '',
+    ];
+}
+
+/**
+ * Filenames stored on carton_photo (legacy single name or JSON list).
+ *
+ * @param mixed $stored
+ * @return array
+ */
+function opsdesk_parse_carton_photos($stored)
+{
+    if ($stored === null || $stored === '') {
+        return [];
+    }
+
+    $stored = trim((string) $stored);
+    if ($stored === '') {
+        return [];
+    }
+
+    if (isset($stored[0]) && $stored[0] === '[') {
+        $decoded = json_decode($stored, true);
+        if (is_array($decoded)) {
+            $files = [];
+            foreach ($decoded as $item) {
+                $item = trim((string) $item);
+                if ($item !== '') {
+                    $files[] = $item;
+                }
+            }
+
+            return array_values($files);
+        }
+    }
+
+    return [$stored];
+}
+
+/**
+ * Encode carton photo filenames for storage.
+ *
+ * @param array $files
+ * @return string|null
+ */
+function opsdesk_encode_carton_photos($files)
+{
+    $clean = [];
+    foreach ((array) $files as $item) {
+        $item = trim((string) $item);
+        if ($item !== '') {
+            $clean[] = $item;
+        }
+    }
+
+    $clean = array_values(array_unique($clean));
+
+    if (empty($clean)) {
+        return null;
+    }
+
+    return json_encode($clean);
+}
+
+/**
+ * Preview kind for a stored OpsDesk file.
+ *
+ * @param string $stored
+ * @return string image|pdf|other
+ */
+function opsdesk_file_preview_type($stored)
+{
+    $ext = strtolower(pathinfo((string) $stored, PATHINFO_EXTENSION));
+    if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'], true)) {
+        return 'image';
+    }
+    if ($ext === 'pdf') {
+        return 'pdf';
+    }
+
+    return 'other';
+}
+
+/**
  * Search CRM clients for the customer picker.
  *
  * @param string $q

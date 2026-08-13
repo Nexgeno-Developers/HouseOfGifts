@@ -26,6 +26,8 @@
                                     <?php $this->load->view($tab_view, ['group' => $group, 'packing_types' => $packing_types]); ?>
                                 <?php } elseif ($group === 'transport_mediums') { ?>
                                     <?php $this->load->view($tab_view, ['group' => $group, 'transport_mediums' => $transport_mediums]); ?>
+                                <?php } elseif ($group === 'inventory') { ?>
+                                    <?php $this->load->view($tab_view, ['group' => $group, 'bypass_stock_check' => $bypass_stock_check]); ?>
                                 <?php } ?>
                             </div>
                         </div>

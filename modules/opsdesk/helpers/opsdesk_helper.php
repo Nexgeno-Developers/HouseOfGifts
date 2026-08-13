@@ -661,6 +661,19 @@ function opsdesk_can_manage_settings()
 }
 
 /**
+ * Whether stock sufficiency checks are bypassed for order creation.
+ *
+ * Temporary override until warehouse stock is accurate. When enabled,
+ * staff can confirm orders even if components show as insufficient.
+ *
+ * @return bool
+ */
+function opsdesk_bypass_stock_check()
+{
+    return get_option('opsdesk_bypass_stock_check') == '1';
+}
+
+/**
  * Absolute filesystem path for OpsDesk uploads.
  *
  * @return string

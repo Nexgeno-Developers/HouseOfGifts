@@ -219,13 +219,24 @@ function getCsrfPostData() {
     $("#opsdesk_order_components_body").html(html);
 
     var summary = $("#opsdesk_order_summary");
-    summary.removeClass("hide alert-success alert-danger");
+    summary.removeClass("hide alert-success alert-danger alert-warning");
 
     if (data.is_fulfillable) {
       summary
         .addClass("alert-success")
         .html(
           '<i class="fa fa-check-circle"></i> ' + opsdeskOrderLang.allSufficient,
+        );
+      updateSubmitState(true);
+    } else if (typeof opsdeskBypassStockCheck !== "undefined" && opsdeskBypassStockCheck) {
+      summary
+        .addClass("alert-warning")
+        .html(
+          '<i class="fa fa-exclamation-triangle"></i> ' +
+            opsdeskOrderLang.componentsInsufficient.replace(
+              "%s",
+              insufficientCount,
+            ),
         );
       updateSubmitState(true);
     } else {
@@ -353,12 +364,16 @@ function getCsrfPostData() {
 
     $("#opsdesk_order_qty").on("input change", debouncedStockCheck);
     $("#opsdesk_packing_type").on("change", function () {
-      var stockOk = $("#opsdesk_order_summary").hasClass("alert-success");
+      var stockOk =
+        $("#opsdesk_order_summary").hasClass("alert-success") ||
+        $("#opsdesk_order_summary").hasClass("alert-warning");
       updateSubmitState(stockOk);
     });
 
     $("#opsdesk_transport_medium").on("change", function () {
-      var stockOk = $("#opsdesk_order_summary").hasClass("alert-success");
+      var stockOk =
+        $("#opsdesk_order_summary").hasClass("alert-success") ||
+        $("#opsdesk_order_summary").hasClass("alert-warning");
       updateSubmitState(stockOk);
     });
 

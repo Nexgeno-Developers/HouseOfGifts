@@ -117,6 +117,13 @@
                             <span class="label" id="opsdesk_summary_label"></span>
                         </div>
 
+                        <?php if (opsdesk_bypass_stock_check()) { ?>
+                        <div class="alert alert-warning mtop15">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <?php echo _l('opsdesk_bypass_stock_check_notice'); ?>
+                        </div>
+                        <?php } ?>
+
                         <?php if (opsdesk_can_create_orders()) { ?>
                         <div id="opsdesk_create_order_wrap" class="hide mtop15">
                             <a href="#" id="opsdesk_create_order_btn" class="btn btn-success">
@@ -135,6 +142,7 @@
     var opsdeskAjaxUrl = '<?php echo admin_url('opsdesk/ajax_availability'); ?>';
     var opsdeskNewOrderUrl = '<?php echo admin_url('opsdesk/order'); ?>';
     var opsdeskCanCreateOrder = <?php echo opsdesk_can_create_orders() ? 'true' : 'false'; ?>;
+    var opsdeskBypassStockCheck = <?php echo opsdesk_bypass_stock_check() ? 'true' : 'false'; ?>;
     var opsdeskLang = {
         sufficient: '<?php echo _l('opsdesk_sufficient'); ?>',
         insufficient: '<?php echo _l('opsdesk_insufficient'); ?>',

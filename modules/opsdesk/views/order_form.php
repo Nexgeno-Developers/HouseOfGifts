@@ -162,6 +162,13 @@
 
                         <div id="opsdesk_order_summary" class="hide alert mtop15"></div>
 
+                        <?php if (opsdesk_bypass_stock_check()) { ?>
+                        <div class="alert alert-warning mtop15">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <?php echo _l('opsdesk_bypass_stock_check_notice'); ?>
+                        </div>
+                        <?php } ?>
+
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -237,6 +244,7 @@
     var opsdeskProductDetailsUrl = '<?php echo admin_url('opsdesk/ajax_availability'); ?>';
     var opsdeskClientsUrl = '<?php echo admin_url('opsdesk/clients'); ?>';
     var opsdeskOrderPrefill = <?php echo json_encode($prefill); ?>;
+    var opsdeskBypassStockCheck = <?php echo opsdesk_bypass_stock_check() ? 'true' : 'false'; ?>;
     var opsdeskOrderLang = {
         sufficient: '<?php echo _l('opsdesk_sufficient'); ?>',
         insufficient: '<?php echo _l('opsdesk_insufficient'); ?>',

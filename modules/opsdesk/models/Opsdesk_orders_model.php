@@ -322,7 +322,7 @@ class Opsdesk_orders_model extends App_Model
                 );
                 $required = (float) $item['quantity_per_unit'] * $quantity;
 
-                if ($net_available < $required) {
+                if ($net_available < $required && !opsdesk_bypass_stock_check()) {
                     $this->db->trans_rollback();
 
                     return ['success' => false, 'message' => _l('opsdesk_stock_no_longer_available', $item['sku'])];

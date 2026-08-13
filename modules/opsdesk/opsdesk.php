@@ -6,7 +6,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 Module Name: OpsDesk
 Description: Operations desk — combo products, inventory viewer, and work order management.
 Author: OpsDesk
-Version: 1.0.8
+Version: 1.1.2
 Requires at least: 2.3.*
 */
 
@@ -15,6 +15,8 @@ define('OPSDESK_MODULE_NAME', 'opsdesk');
 $CI = &get_instance();
 
 $CI->load->helper(OPSDESK_MODULE_NAME . '/opsdesk');
+
+add_option('opsdesk_bypass_stock_check', '0');
 
 hooks()->add_action('admin_init', 'opsdesk_init_menu_items');
 hooks()->add_action('admin_init', 'opsdesk_permissions');

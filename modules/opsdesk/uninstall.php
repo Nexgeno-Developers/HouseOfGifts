@@ -33,3 +33,4 @@ if ($CI->db->table_exists($prefix . 'opsdesk_combos')) {
 $CI->db->query('SET FOREIGN_KEY_CHECKS = 1');
 
 delete_option('opsdesk_module_version');
+delete_option('opsdesk_bypass_stock_check');

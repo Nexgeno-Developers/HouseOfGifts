@@ -268,7 +268,12 @@
       summaryContainer.addClass("hide");
     }
 
-    updateCreateOrderButton(allSufficient && itemCount > 0);
+    updateCreateOrderButton(
+      (allSufficient ||
+        (typeof opsdeskBypassStockCheck !== "undefined" &&
+          opsdeskBypassStockCheck)) &&
+        itemCount > 0,
+    );
   }
 
   function collectOrderOverrides() {
@@ -460,7 +465,7 @@
     }
     $("#opsdesk_summary").removeClass("hide");
 
-    updateCreateOrderButton(data.is_fulfillable);
+    updateCreateOrderButton(data.is_fulfillable || (typeof opsdeskBypassStockCheck !== "undefined" && opsdeskBypassStockCheck));
     attachRowHandlers();
   }
 
@@ -565,9 +570,11 @@
           var $row = $(this);
           var allSufficient = true;
           if ($row.find("td:eq(4) .label-danger").length > 0) {
-            alert(
-              "Inventory insufficient for one or more items. Please adjust the quantities.",
-            );
+            if (typeof opsdeskBypassStockCheck === "undefined" || !opsdeskBypassStockCheck) {
+              alert(
+                "Inventory insufficient for one or more items. Please adjust the quantities.",
+              );
+            }
             return (allSufficient = false);
           } else {
             if (
@@ -576,9 +583,11 @@
             ) {
               allSufficient = true;
             } else {
-              alert(
-                "Inventory insufficient for one or more items. Please adjust the quantities.",
-              );
+              if (typeof opsdeskBypassStockCheck === "undefined" || !opsdeskBypassStockCheck) {
+                alert(
+                  "Inventory insufficient for one or more items. Please adjust the quantities.",
+                );
+              }
               return (allSufficient = false);
             }
           }

@@ -274,4 +274,5 @@ if ($CI->db->field_exists('packing_type', $prefix . 'opsdesk_orders')) {
     $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` MODIFY `packing_type` VARCHAR(50) NOT NULL DEFAULT 'box'");
 }
 
-add_option('opsdesk_module_version', '1.0.11');
+add_option('opsdesk_module_version', '1.1.2');
+add_option('opsdesk_bypass_stock_check', '0');

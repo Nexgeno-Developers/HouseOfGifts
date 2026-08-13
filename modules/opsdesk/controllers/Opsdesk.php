@@ -55,7 +55,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
 
         $data['group']  = $group;
         $data['title']  = _l('opsdesk_settings');
-        $data['tabs']   = ['product_statuses', 'packing_types', 'transport_mediums'];
+        $data['tabs']   = ['product_statuses', 'packing_types', 'transport_mediums', 'inventory'];
 
         // Only allow known tabs; fall back to the default to avoid loading a
         // non-existent view via a crafted URL segment.
@@ -76,6 +76,10 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             $data['transport_mediums'] = $this->opsdesk_transport_mediums_model->get();
         }
 
+        if ($group === 'inventory') {
+            $data['bypass_stock_check'] = opsdesk_bypass_stock_check();
+        }
+
         $data['tab_view'] = 'includes/' . $group;
 
         $this->app_scripts->add(
@@ -84,6 +88,24 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         );
 
         $this->load->view('settings', $data);
+    }
+
+    /**
+     * POST: save inventory settings (stock-check bypass).
+     */
+    public function save_inventory_settings()
+    {
+        if (!opsdesk_can_manage_settings()) {
+            access_denied('opsdesk');
+        }
+
+        if ($this->input->post()) {
+            $enabled = $this->input->post('opsdesk_bypass_stock_check') ? '1' : '0';
+            update_option('opsdesk_bypass_stock_check', $enabled);
+            set_alert('success', _l('updated_successfully', _l('settings')));
+        }
+
+        redirect(admin_url('opsdesk/settings/inventory'));
     }
 
     /**

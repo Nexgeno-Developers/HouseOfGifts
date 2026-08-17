@@ -75,6 +75,7 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         `transport_medium_id` int(11) UNSIGNED DEFAULT NULL,
         `status` varchar(100) NOT NULL DEFAULT 'pending',
         `notes` text DEFAULT NULL,
+        `priority` tinyint(1) NOT NULL DEFAULT 0,
         `bill_file` varchar(255) DEFAULT NULL,
         `payment_file` varchar(255) DEFAULT NULL,
         `lr_copy` varchar(255) DEFAULT NULL,
@@ -92,6 +93,7 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         PRIMARY KEY (`id`),
         KEY `idx_opsdesk_orders_combo_id` (`combo_id`),
         KEY `idx_opsdesk_orders_status` (`status`),
+        KEY `idx_opsdesk_orders_priority` (`priority`),
         KEY `idx_opsdesk_orders_transport_medium` (`transport_medium_id`),
         KEY `idx_opsdesk_orders_delivery_date` (`delivery_date`),
         KEY `idx_opsdesk_orders_created_by` (`created_by`),
@@ -229,6 +231,7 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         `transport_medium_id` int(11) UNSIGNED DEFAULT NULL,
         `status` varchar(100) NOT NULL DEFAULT 'pending',
         `notes` text DEFAULT NULL,
+        `priority` tinyint(1) NOT NULL DEFAULT 0,
         `bill_file` varchar(255) DEFAULT NULL,
         `payment_file` varchar(255) DEFAULT NULL,
         `lr_copy` varchar(255) DEFAULT NULL,
@@ -246,6 +249,7 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         PRIMARY KEY (`id`),
         KEY `idx_opsdesk_orders_combo_id` (`combo_id`),
         KEY `idx_opsdesk_orders_status` (`status`),
+        KEY `idx_opsdesk_orders_priority` (`priority`),
         KEY `idx_opsdesk_orders_transport_medium` (`transport_medium_id`),
         KEY `idx_opsdesk_orders_delivery_date` (`delivery_date`),
         KEY `idx_opsdesk_orders_created_by` (`created_by`),
@@ -257,7 +261,7 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
 } else {
     $ordersTable = $prefix . 'opsdesk_orders';
 
-    // Phase 2 columns (103/105) — self-heal when table predates those migrations
+    // Self-heal columns added after the original table (safe if already present)
     if (!$CI->db->field_exists('customer_id', $ordersTable)) {
         $after = $CI->db->field_exists('combo_name', $ordersTable) ? ' AFTER `combo_name`' : '';
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `customer_id` int(11) DEFAULT NULL{$after}");
@@ -266,13 +270,32 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         $after = $CI->db->field_exists('customer_id', $ordersTable) ? ' AFTER `customer_id`' : '';
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `customer_city` varchar(100) DEFAULT NULL{$after}");
     }
-    if (!$CI->db->field_exists('bill_file', $ordersTable)) {
+    if (!$CI->db->field_exists('priority', $ordersTable)) {
         $after = $CI->db->field_exists('notes', $ordersTable) ? ' AFTER `notes`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `priority` tinyint(1) NOT NULL DEFAULT 0{$after}");
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD INDEX `idx_opsdesk_orders_priority` (`priority`)");
+    }
+    if (!$CI->db->field_exists('bill_file', $ordersTable)) {
+        $after = $CI->db->field_exists('priority', $ordersTable)
+            ? ' AFTER `priority`'
+            : ($CI->db->field_exists('notes', $ordersTable) ? ' AFTER `notes`' : '');
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `bill_file` varchar(255) DEFAULT NULL{$after}");
     }
     if (!$CI->db->field_exists('payment_file', $ordersTable)) {
         $after = $CI->db->field_exists('bill_file', $ordersTable) ? ' AFTER `bill_file`' : '';
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `payment_file` varchar(255) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('lr_copy', $ordersTable)) {
+        $after = $CI->db->field_exists('payment_file', $ordersTable) ? ' AFTER `payment_file`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `lr_copy` varchar(255) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('carton_photo', $ordersTable)) {
+        $after = $CI->db->field_exists('lr_copy', $ordersTable) ? ' AFTER `lr_copy`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `carton_photo` text DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('carton_count', $ordersTable)) {
+        $after = $CI->db->field_exists('carton_photo', $ordersTable) ? ' AFTER `carton_photo`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `carton_count` int(11) DEFAULT NULL{$after}");
     }
     if (!$CI->db->field_exists('packed_by', $ordersTable)) {
         $after = $CI->db->field_exists('updated_by', $ordersTable) ? ' AFTER `updated_by`' : '';
@@ -282,14 +305,18 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         $after = $CI->db->field_exists('packed_by', $ordersTable) ? ' AFTER `packed_by`' : '';
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `count_by` int(11) DEFAULT NULL{$after}");
     }
-
-    // Add transport_medium_id column if it doesn't exist (for existing installations)
+    if (!$CI->db->field_exists('cancelled_by', $ordersTable)) {
+        $after = $CI->db->field_exists('count_by', $ordersTable) ? ' AFTER `count_by`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `cancelled_by` int(11) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('cancelled_at', $ordersTable)) {
+        $after = $CI->db->field_exists('cancelled_by', $ordersTable) ? ' AFTER `cancelled_by`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `cancelled_at` datetime DEFAULT NULL{$after}");
+    }
     if (!$CI->db->field_exists('transport_medium_id', $ordersTable)) {
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `transport_medium_id` INT UNSIGNED DEFAULT NULL AFTER `packing_type`");
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD INDEX `idx_opsdesk_orders_transport_medium` (`transport_medium_id`)");
     }
-
-    // Add delivery_date column if it doesn't exist (for existing installations)
     if (!$CI->db->field_exists('delivery_date', $ordersTable)) {
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `delivery_date` DATE DEFAULT NULL AFTER `cancelled_at`");
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD INDEX `idx_opsdesk_orders_delivery_date` (`delivery_date`)");

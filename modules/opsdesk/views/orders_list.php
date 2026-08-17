@@ -165,7 +165,7 @@
                                                 $show_accept   = $accept_status !== '';
                                             }
                                             $status_picks = [];
-                                            if (!empty($can_edit)) {
+                                            if (!empty($can_edit) && !opsdesk_order_is_locked($order)) {
                                                 foreach (opsdesk_get_next_order_statuses($order['status']) as $st) {
                                                     if ($st === 'cancelled') {
                                                         continue;

@@ -985,6 +985,16 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $new_status = trim($this->input->post('status') ?? '');
         $extra      = [];
 
+        // A packer must be assigned before the order can move on. The accept
+        // form supplies packed_by in this same request, so only block when
+        // neither the order nor the submission has one.
+        if (!(int) $this->input->post('packed_by')) {
+            $this->block_locked_order(
+                $this->opsdesk_orders_model->get($order_id),
+                admin_url('opsdesk/order/' . $order_id . '?tab=assign')
+            );
+        }
+
         // Handle file uploads for completion
         if ($new_status === 'completed') {
             // LR copy upload
@@ -1102,6 +1112,30 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
     }
 
     /**
+     * Stop the request when the order has no packer assigned.
+     *
+     * @param array  $order
+     * @param string $redirect_url
+     * @return void
+     */
+    private function block_locked_order($order, $redirect_url)
+    {
+        if (!opsdesk_order_is_locked($order)) {
+            return;
+        }
+
+        $message = _l('opsdesk_order_locked_no_packer');
+
+        if ($this->input->is_ajax_request()) {
+            echo json_encode(['success' => false, 'message' => $message]);
+            die;
+        }
+
+        set_alert('warning', $message);
+        redirect($redirect_url);
+    }
+
+    /**
      * POST: cancel order.
      *
      * @param int $id
@@ -1181,6 +1215,8 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             redirect(admin_url('opsdesk/orders'));
         }
 
+        $this->block_locked_order($order, admin_url('opsdesk/order/' . $order_id . '?tab=assign'));
+
         $field = isset($_FILES['carton_photos']) ? 'carton_photos' : 'carton_photo';
         $upload = opsdesk_handle_multi_upload($field);
         if (!$upload['success']) {
@@ -1216,6 +1252,8 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             set_alert('warning', _l('opsdesk_order_not_found'));
             redirect(admin_url('opsdesk/orders'));
         }
+
+        $this->block_locked_order($order, admin_url('opsdesk/order/' . $order_id . '?tab=assign'));
 
         if (empty($_FILES[$field]) || empty($_FILES[$field]['name'])) {
             set_alert('warning', _l('opsdesk_upload_failed'));
@@ -1255,6 +1293,11 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             }
             redirect(admin_url('opsdesk/orders'));
         }
+
+        $this->block_locked_order(
+            $this->opsdesk_orders_model->get((int) $order_id),
+            admin_url('opsdesk/order/' . $order_id . '?tab=assign')
+        );
 
         $priority = (int) $this->input->post('priority');
         if (!in_array($priority, [0, 1], true)) {

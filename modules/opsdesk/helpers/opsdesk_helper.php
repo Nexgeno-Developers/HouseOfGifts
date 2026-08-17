@@ -614,6 +614,33 @@ function opsdesk_can_edit_orders()
 }
 
 /**
+ * Whether an order is locked from further changes because no packer
+ * (Packed By / Assigned to) has been set yet.
+ *
+ * Assigning the packer and cancelling stay available so a locked order is
+ * never a dead end.
+ *
+ * @param array|object $order
+ * @return bool
+ */
+function opsdesk_order_is_locked($order)
+{
+    if (empty($order)) {
+        return false;
+    }
+
+    if (is_object($order)) {
+        $order = (array) $order;
+    }
+
+    if (!is_array($order) || !array_key_exists('packed_by', $order)) {
+        return false;
+    }
+
+    return (int) $order['packed_by'] <= 0;
+}
+
+/**
  * Next allowed order statuses for UI.
  *
  * @param string $status

@@ -262,11 +262,25 @@ init_head(); ?>
 
                                 <!-- Tab navigation -->
                                 <?php
+                                // No packer assigned: everything except the assignment
+                                // itself (and cancelling) is read-only.
+                                $order_locked = opsdesk_order_is_locked($order);
+
+                                // Pending orders assign their packer through the accept
+                                // form on the Status tab, so only send other locked
+                                // orders straight to Staff Assignment.
                                 $opsdesk_tab = $this->input->get('tab');
-                                $opsdesk_tab_assign   = ($opsdesk_tab === 'assign');
-                                $opsdesk_tab_priority = ($opsdesk_tab === 'priority');
+                                $opsdesk_tab_assign   = ($opsdesk_tab === 'assign')
+                                    || ($order_locked && $order['status'] !== 'pending');
+                                $opsdesk_tab_priority = ($opsdesk_tab === 'priority') && !$order_locked;
                                 $opsdesk_tab_status   = (!$opsdesk_tab_assign && !$opsdesk_tab_priority);
                                 ?>
+                                <?php if ($order_locked && !empty($can_edit)) { ?>
+                                <div class="alert alert-warning">
+                                    <i class="fa fa-lock mright5"></i>
+                                    <?php echo _l('opsdesk_order_locked_notice'); ?>
+                                </div>
+                                <?php } ?>
                                 <ul class="nav nav-tabs nav-tabs-horizontal" role="tablist">
                                     <li role="presentation"<?php echo $opsdesk_tab_status ? ' class="active"' : ''; ?>>
                                         <a href="#opsdesk-tab-status" aria-controls="opsdesk-tab-status" role="tab" data-toggle="tab">
@@ -310,16 +324,29 @@ init_head(); ?>
 
                                             <div class="row-margin-bottom">
                                                 <?php
-                                                $next_statuses = opsdesk_get_order_status_option_keys(false);
-                                                if (!empty($next_statuses)) {
+                                                // Only statuses ahead of the current one are selectable; the
+                                                // backend rejects backward transitions anyway.
+                                                $status_options = $order_locked
+                                                    ? []
+                                                    : (isset($next_statuses)
+                                                        ? $next_statuses
+                                                        : opsdesk_get_next_order_statuses($order['status']));
+                                                $status_options = array_values(array_filter($status_options, function ($status_key) use ($order) {
+                                                    if ($status_key === 'cancelled') {
+                                                        return false;
+                                                    }
+
+                                                    // Pending orders move to In Progress through the accept
+                                                    // form above, which captures the mandatory packer.
+                                                    return !($order['status'] === 'pending' && $status_key === 'in_progress');
+                                                }));
+                                                if (!empty($status_options)) {
                                                 ?>
                                                 <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'row-margin-bottom']); ?>
                                                     <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
                                                     <select name="status" class="selectpicker" data-width="100%" onchange="if (this.value) this.form.submit();">
                                                         <option value=""><?php echo _l('opsdesk_update_status'); ?></option>
-                                                        <?php foreach ($next_statuses as $status_key) {
-                                                            if ($order['status'] === $status_key) { continue; }
-                                                        ?>
+                                                        <?php foreach ($status_options as $status_key) { ?>
                                                         <option value="<?php echo e($status_key); ?>">
                                                             <?php echo e(opsdesk_get_order_status_label($status_key)); ?>
                                                         </option>
@@ -409,7 +436,7 @@ init_head(); ?>
 
                                     <!-- Tab 3: Priority Flag Toggle -->
                                     <div role="tabpanel" class="tab-pane<?php echo $opsdesk_tab_priority ? ' active' : ''; ?>" id="opsdesk-tab-priority">
-                                        <?php if (!empty($can_edit)) { ?>
+                                        <?php if (!empty($can_edit) && !$order_locked) { ?>
                                         <?php echo form_open(admin_url('opsdesk/update_priority/' . $order['id']), ['id' => 'opsdesk_priority_form', 'class' => 'row-margin-bottom']); ?>
                                         <div class="form-group row-margin-bottom">
                                             <div class="radio radio-primary radio-inline mright15">
@@ -474,7 +501,7 @@ init_head(); ?>
                                             <span class="text-muted">—</span>
                                             <?php } ?>
                                         </div>
-                                        <?php if (!empty($can_edit)) { ?>
+                                        <?php if (!empty($can_edit) && !$order_locked) { ?>
                                         <div class="mtop10">
                                             <?php echo form_open_multipart(admin_url('opsdesk/upload_payment_file/' . $order['id']), ['id' => 'opsdesk_payment_upload_form']); ?>
                                             <input type="file" name="payment_file" id="opsdesk_payment_file"
@@ -502,7 +529,7 @@ init_head(); ?>
                                             <span class="text-muted">—</span>
                                             <?php } ?>
                                         </div>
-                                        <?php if (!empty($can_edit)) { ?>
+                                        <?php if (!empty($can_edit) && !$order_locked) { ?>
                                         <div class="mtop10">
                                             <?php echo form_open_multipart(admin_url('opsdesk/upload_lr_copy/' . $order['id']), ['id' => 'opsdesk_lr_copy_upload_form']); ?>
                                             <input type="file" name="lr_copy" id="opsdesk_lr_copy"
@@ -544,7 +571,7 @@ init_head(); ?>
                                             <span class="text-muted">—</span>
                                             <?php } ?>
                                         </div>
-                                        <?php if (!empty($can_edit)) { ?>
+                                        <?php if (!empty($can_edit) && !$order_locked) { ?>
                                         <div class="mtop10">
                                             <?php echo form_open_multipart(admin_url('opsdesk/upload_carton_photo/' . $order['id']), ['id' => 'opsdesk_carton_photo_upload_form']); ?>
                                             <input type="file" name="carton_photos[]" id="opsdesk_carton_photos"

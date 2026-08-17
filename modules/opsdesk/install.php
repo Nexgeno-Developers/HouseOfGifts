@@ -255,16 +255,44 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
             ON DELETE RESTRICT ON UPDATE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET={$charset};");
 } else {
+    $ordersTable = $prefix . 'opsdesk_orders';
+
+    // Phase 2 columns (103/105) — self-heal when table predates those migrations
+    if (!$CI->db->field_exists('customer_id', $ordersTable)) {
+        $after = $CI->db->field_exists('combo_name', $ordersTable) ? ' AFTER `combo_name`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `customer_id` int(11) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('customer_city', $ordersTable)) {
+        $after = $CI->db->field_exists('customer_id', $ordersTable) ? ' AFTER `customer_id`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `customer_city` varchar(100) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('bill_file', $ordersTable)) {
+        $after = $CI->db->field_exists('notes', $ordersTable) ? ' AFTER `notes`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `bill_file` varchar(255) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('payment_file', $ordersTable)) {
+        $after = $CI->db->field_exists('bill_file', $ordersTable) ? ' AFTER `bill_file`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `payment_file` varchar(255) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('packed_by', $ordersTable)) {
+        $after = $CI->db->field_exists('updated_by', $ordersTable) ? ' AFTER `updated_by`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `packed_by` int(11) DEFAULT NULL{$after}");
+    }
+    if (!$CI->db->field_exists('count_by', $ordersTable)) {
+        $after = $CI->db->field_exists('packed_by', $ordersTable) ? ' AFTER `packed_by`' : '';
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `count_by` int(11) DEFAULT NULL{$after}");
+    }
+
     // Add transport_medium_id column if it doesn't exist (for existing installations)
-    if (!$CI->db->field_exists('transport_medium_id', $prefix . 'opsdesk_orders')) {
-        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD COLUMN `transport_medium_id` INT UNSIGNED DEFAULT NULL AFTER `packing_type`");
-        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD INDEX `idx_opsdesk_orders_transport_medium` (`transport_medium_id`)");
+    if (!$CI->db->field_exists('transport_medium_id', $ordersTable)) {
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `transport_medium_id` INT UNSIGNED DEFAULT NULL AFTER `packing_type`");
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD INDEX `idx_opsdesk_orders_transport_medium` (`transport_medium_id`)");
     }
 
     // Add delivery_date column if it doesn't exist (for existing installations)
-    if (!$CI->db->field_exists('delivery_date', $prefix . 'opsdesk_orders')) {
-        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD COLUMN `delivery_date` DATE DEFAULT NULL AFTER `cancelled_at`");
-        $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` ADD INDEX `idx_opsdesk_orders_delivery_date` (`delivery_date`)");
+    if (!$CI->db->field_exists('delivery_date', $ordersTable)) {
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `delivery_date` DATE DEFAULT NULL AFTER `cancelled_at`");
+        $CI->db->query("ALTER TABLE `{$ordersTable}` ADD INDEX `idx_opsdesk_orders_delivery_date` (`delivery_date`)");
     }
 }
 
@@ -274,5 +302,5 @@ if ($CI->db->field_exists('packing_type', $prefix . 'opsdesk_orders')) {
     $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` MODIFY `packing_type` VARCHAR(50) NOT NULL DEFAULT 'box'");
 }
 
-add_option('opsdesk_module_version', '1.1.2');
+add_option('opsdesk_module_version', '1.1.4');
 add_option('opsdesk_bypass_stock_check', '0');

@@ -20,6 +20,12 @@
      return {};
    }
 
+   function stockCheckBypassed() {
+     return (
+       typeof opsdeskBypassStockCheck !== "undefined" && opsdeskBypassStockCheck
+     );
+   }
+
    var debounceTimer = null;
   var editedItems = null;
   var addedItems = null;
@@ -268,12 +274,7 @@
       summaryContainer.addClass("hide");
     }
 
-    updateCreateOrderButton(
-      (allSufficient ||
-        (typeof opsdeskBypassStockCheck !== "undefined" &&
-          opsdeskBypassStockCheck)) &&
-        itemCount > 0,
-    );
+    updateCreateOrderButton((allSufficient || stockCheckBypassed()) && itemCount > 0);
   }
 
   function collectOrderOverrides() {
@@ -465,7 +466,7 @@
     }
     $("#opsdesk_summary").removeClass("hide");
 
-    updateCreateOrderButton(data.is_fulfillable || (typeof opsdeskBypassStockCheck !== "undefined" && opsdeskBypassStockCheck));
+    updateCreateOrderButton(data.is_fulfillable || stockCheckBypassed());
     attachRowHandlers();
   }
 
@@ -562,42 +563,41 @@
   }
 
   $(function () {
+    var checkBtnDefaultHtml = $("#opsdesk_check_btn").html();
+
+    // Re-checks the rows currently in the table. Used once items have been
+    // added or removed locally, because the availability endpoint only knows
+    // the combo's saved items.
     function newAvailability() {
       var allItems = $("#opsdesk_availability_body tr:not(#opsdesk_empty_row)");
-      var need = $("#opsdesk_order_quantity").val();
-      var allSufficient = false;
-        allItems.each(function () {
-          var $row = $(this);
-          var allSufficient = true;
-          if ($row.find("td:eq(4) .label-danger").length > 0) {
-            if (typeof opsdeskBypassStockCheck === "undefined" || !opsdeskBypassStockCheck) {
-              alert(
-                "Inventory insufficient for one or more items. Please adjust the quantities.",
-              );
-            }
-            return (allSufficient = false);
-          } else {
-            if (
-              parseInt($row.find("td:eq(2)").text(), 10) >=
-              $row.find("td:eq(3) input").val() * need
-            ) {
-              allSufficient = true;
-            } else {
-              if (typeof opsdeskBypassStockCheck === "undefined" || !opsdeskBypassStockCheck) {
-                alert(
-                  "Inventory insufficient for one or more items. Please adjust the quantities.",
-                );
-              }
-              return (allSufficient = false);
-            }
-          }
-        });
+      var allSufficient = allItems.length > 0;
+
+      allItems.each(function () {
+        var $row = $(this);
+        var requiredQty = parseFloat($row.find("td:eq(3) input").val()) || 0;
+        var availableStock =
+          parseFloat($row.find("td:eq(2)").text().replace(/,/g, "")) || 0;
+
+        updateItemStatus($row.data("combo-item-id"), requiredQty, availableStock);
+
+        if (availableStock < requiredQty) {
+          allSufficient = false;
+        }
+      });
+
+      updateFulfillableSummary();
+
       if (allSufficient) {
         alert(
           "Inventory is sufficient for all items. You can proceed with the order.",
         );
+      } else if (!stockCheckBypassed()) {
+        alert(
+          "Inventory insufficient for one or more items. Please adjust the quantities.",
+        );
       }
     }
+
     $("#opsdesk_check_btn").on("click", function () {
       if (newCombo) newAvailability();
       else fetchAvailability();
@@ -647,6 +647,8 @@
     });
 
     $("#opsdesk_combo_id").on("change", function () {
+      newCombo = false;
+      $("#opsdesk_check_btn").html(checkBtnDefaultHtml);
       populateProductSelector();
       debouncedFetch();
     });
@@ -700,6 +702,8 @@
     });
 
     $("#opsdesk_reset_items_btn").on("click", function () {
+      newCombo = false;
+      $("#opsdesk_check_btn").html(checkBtnDefaultHtml);
       resetEdits();
       fetchAvailability();
     });

@@ -1,7 +1,7 @@
 <?php // opsdesk order detail view - rebuilt
 init_head(); ?>
 <link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
-<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/order_detail.css'); ?>">
+<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/order_detail.css'); ?>?v=<?php echo filemtime(module_dir_path(OPSDESK_MODULE_NAME, 'assets/css/order_detail.css')); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">
@@ -22,45 +22,69 @@ init_head(); ?>
 
                 <!-- Visual Stepper -->
                 <?php
-                $statuses = opsdesk_get_order_statuses(true);
-                $current_status = $order['status'];
-                $status_keys = array_column($statuses, 'status_key');
-                $current_index = array_search($current_status, $status_keys, true);
-                if ($current_index === false) {
-                    $current_index = 0;
+                $all_statuses = opsdesk_get_order_statuses(true);
+                $flow_statuses = [];
+                $cancelled_status = null;
+                foreach ($all_statuses as $status) {
+                    if ($status['status_key'] === 'cancelled') {
+                        $cancelled_status = $status;
+                        continue;
+                    }
+                    $flow_statuses[] = $status;
                 }
-                $is_cancelled = $current_status === 'cancelled';
+                if ($cancelled_status === null) {
+                    $cancelled_status = [
+                        'status_key' => 'cancelled',
+                        'name'       => _l('opsdesk_order_status_cancelled'),
+                    ];
+                }
+                $current_status = $order['status'];
+                $is_cancelled   = $current_status === 'cancelled';
+                $flow_keys      = array_column($flow_statuses, 'status_key');
+                $current_index  = array_search($current_status, $flow_keys, true);
+                if ($current_index === false) {
+                    $current_index = $is_cancelled ? -1 : 0;
+                }
                 ?>
-                <div class="opsdesk-stepper tw-mb-4">
-                    <?php foreach ($statuses as $index => $status) {
-                        $is_completed = $index < $current_index;
-                        $is_current = $index === $current_index;
-                        $step_class = 'stepper-step';
-                        if ($is_completed) {
-                            $step_class .= ' stepper-completed';
-                        } elseif ($is_current && !$is_cancelled) {
-                            $step_class .= ' stepper-current';
-                        }
-                        if ($is_cancelled && $status['status_key'] !== 'cancelled') {
-                            $step_class .= ' stepper-skipped';
-                        }
-                    ?>
-                    <div class="<?php echo $step_class; ?>">
-                        <div class="stepper-icon">
-                            <?php if ($is_completed): ?>
-                                <i class="fa fa-check"></i>
-                            <?php elseif ($is_current && !$is_cancelled): ?>
-                                <span class="stepper-current-dot"></span>
-                            <?php else: ?>
-                                <span class="stepper-number"><?php echo $index + 1; ?></span>
-                            <?php endif; ?>
+                <div class="opsdesk-stepper-wrap tw-mb-4">
+                    <div class="opsdesk-stepper">
+                        <?php foreach ($flow_statuses as $index => $status) {
+                            $is_done    = !$is_cancelled && $index < $current_index;
+                            $is_current = !$is_cancelled && $index === $current_index;
+                            $step_class = 'stepper-step';
+                            if ($is_done) {
+                                $step_class .= ' stepper-completed';
+                            } elseif ($is_current) {
+                                $step_class .= ' stepper-current';
+                            }
+                            if ($is_cancelled) {
+                                $step_class .= ' stepper-skipped';
+                            }
+                        ?>
+                        <div class="<?php echo $step_class; ?>">
+                            <div class="stepper-icon">
+                                <?php if ($is_done) { ?>
+                                    <i class="fa fa-check"></i>
+                                <?php } elseif ($is_current) { ?>
+                                    <span class="stepper-current-dot"></span>
+                                <?php } else { ?>
+                                    <span class="stepper-number"><?php echo $index + 1; ?></span>
+                                <?php } ?>
+                            </div>
+                            <div class="stepper-label"><?php echo e($status['name']); ?></div>
                         </div>
-                        <div class="stepper-label"><?php echo e($status['name']); ?></div>
-                        <?php if ($index < count($statuses) - 1): ?>
-                        <div class="stepper-line"></div>
-                        <?php endif; ?>
+                        <?php } ?>
                     </div>
-                    <?php } ?>
+                    <div class="opsdesk-stepper-cancelled<?php echo $is_cancelled ? ' is-active' : ''; ?>">
+                        <div class="stepper-icon">
+                            <?php if ($is_cancelled) { ?>
+                                <i class="fa fa-times"></i>
+                            <?php } else { ?>
+                                <i class="fa fa-ban"></i>
+                            <?php } ?>
+                        </div>
+                        <div class="stepper-label"><?php echo e($cancelled_status['name']); ?></div>
+                    </div>
                 </div>
 
                 <div class="row">

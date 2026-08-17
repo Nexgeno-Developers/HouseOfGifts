@@ -1,13 +1,74 @@
 /* OpsDesk — orders list view styles */
 
-.row-options a {
-    margin-right: 8px;
-    color: #555;
+.opsdesk-actions-cell {
+    width: 1%;
+    white-space: nowrap;
+    vertical-align: middle !important;
 }
 
-.row-options a:hover {
-    color: #333;
-    text-decoration: underline;
+.opsdesk-row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+}
+
+.opsdesk-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #737373;
+    line-height: 1;
+    font-size: 15px;
+    text-decoration: none !important;
+    cursor: pointer;
+    vertical-align: middle;
+    box-shadow: none;
+}
+
+.opsdesk-action-btn:hover,
+.opsdesk-action-btn:focus {
+    background: #f3f4f6;
+    color: #171717;
+    outline: none;
+    text-decoration: none !important;
+}
+
+.opsdesk-action-btn.opsdesk-action-success:hover,
+.opsdesk-action-btn.opsdesk-action-success:focus {
+    background: #ecfdf3;
+    color: #2e7d32;
+}
+
+.opsdesk-action-btn.opsdesk-action-danger:hover,
+.opsdesk-action-btn.opsdesk-action-danger:focus {
+    background: #fef2f2;
+    color: #e7515e;
+}
+
+.opsdesk-status-dd {
+    display: inline-flex;
+    position: relative;
+}
+
+.opsdesk-status-dd.open > .opsdesk-status-toggle {
+    background: #f3f4f6;
+    color: #171717;
+}
+
+.opsdesk-status-menu {
+    min-width: 160px;
+}
+
+.opsdesk-status-menu.opsdesk-status-menu-open {
+    display: block !important;
 }
 
 .label-tag {

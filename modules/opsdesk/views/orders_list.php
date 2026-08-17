@@ -1,7 +1,7 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
 <link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
-<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/orders_list.css'); ?>">
+<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/orders_list.css'); ?>?v=<?php echo filemtime(module_dir_path(OPSDESK_MODULE_NAME, 'assets/css/orders_list.css')); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">
@@ -149,68 +149,88 @@
                                          <td><?php echo e(!empty($order['creator_name']) ? $order['creator_name'] : '—'); ?></td>
                                         <?php } ?>
                                          <td data-order="<?php echo e($order['created_at'] ?? ''); ?>"><?php echo e(!empty($order['created_at']) ? _dt($order['created_at']) : '—'); ?></td>
-                                        <td>
-                                            <div class="row-options">
-                                                <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>">
-                                                    <?php echo _l('opsdesk_view_order'); ?>
-                                                </a>
-
-                                                <?php
-                                                $is_own   = (int) $order['created_by'] === (int) get_staff_user_id();
-                                                $can_cancel = false;
-                                                if (!empty($can_edit) && in_array($order['status'], ['pending', 'in_progress', 'packed'], true)) {
-                                                    $can_cancel = true;
-                                                } elseif ($is_own && $order['status'] === 'pending') {
-                                                    $can_cancel = true;
+                                        <td class="opsdesk-actions-cell">
+                                            <?php
+                                            $is_own = (int) $order['created_by'] === (int) get_staff_user_id();
+                                            $can_cancel = false;
+                                            if (!empty($can_edit) && in_array($order['status'], ['pending', 'in_progress', 'packed'], true)) {
+                                                $can_cancel = true;
+                                            } elseif ($is_own && $order['status'] === 'pending') {
+                                                $can_cancel = true;
+                                            }
+                                            $accept_status = '';
+                                            $show_accept   = false;
+                                            if (!empty($can_edit) && $order['status'] === 'pending') {
+                                                $accept_status = opsdesk_get_default_next_status($order['status']);
+                                                $show_accept   = $accept_status !== '';
+                                            }
+                                            $status_picks = [];
+                                            if (!empty($can_edit)) {
+                                                foreach (opsdesk_get_next_order_statuses($order['status']) as $st) {
+                                                    if ($st === 'cancelled') {
+                                                        continue;
+                                                    }
+                                                    if ($show_accept && $st === 'in_progress') {
+                                                        continue;
+                                                    }
+                                                    $status_picks[] = $st;
                                                 }
-                                                if ($can_cancel) { ?>
-                                                | <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order['id']); ?>"
-                                                    class="_delete"
-                                                    data-message="<?php echo e(_l('opsdesk_cancel_order_confirm')); ?>">
-                                                    <?php echo _l('opsdesk_cancel_order'); ?>
+                                            }
+                                            ?>
+                                            <div class="opsdesk-row-actions">
+                                                <a href="<?php echo admin_url('opsdesk/order/' . $order['id']); ?>"
+                                                    class="opsdesk-action-btn"
+                                                    data-toggle="tooltip"
+                                                    data-placement="top"
+                                                    title="<?php echo e(_l('opsdesk_view_order')); ?>">
+                                                    <i class="fa-regular fa-eye"></i>
+                                                </a>
+                                                <?php if ($show_accept) { ?>
+                                                <button type="button"
+                                                    class="opsdesk-action-btn opsdesk-action-success opsdesk-open-accept"
+                                                    data-toggle="tooltip"
+                                                    data-placement="top"
+                                                    title="<?php echo e(_l('opsdesk_accept_order')); ?>"
+                                                    data-order-id="<?php echo (int) $order['id']; ?>"
+                                                    data-status="<?php echo e($accept_status); ?>">
+                                                    <i class="fa-regular fa-circle-check"></i>
+                                                </button>
+                                                <?php } ?>
+                                                <?php if (!empty($status_picks)) { ?>
+                                                <div class="opsdesk-status-dd">
+                                                    <button type="button"
+                                                        class="opsdesk-action-btn opsdesk-status-toggle"
+                                                        aria-haspopup="true"
+                                                        aria-expanded="false"
+                                                        data-toggle="tooltip"
+                                                        data-placement="top"
+                                                        title="<?php echo e(_l('opsdesk_update_status')); ?>">
+                                                        <i class="fa fa-refresh"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-right opsdesk-status-menu">
+                                                        <li class="dropdown-header"><?php echo e(_l('opsdesk_update_status')); ?></li>
+                                                        <?php foreach ($status_picks as $st) { ?>
+                                                        <li>
+                                                            <a href="#"
+                                                                class="opsdesk-status-pick"
+                                                                data-order-id="<?php echo (int) $order['id']; ?>"
+                                                                data-status="<?php echo e($st); ?>">
+                                                                <?php echo e(opsdesk_get_order_status_label($st)); ?>
+                                                            </a>
+                                                        </li>
+                                                        <?php } ?>
+                                                    </ul>
+                                                </div>
+                                                <?php } ?>
+                                                <?php if ($can_cancel) { ?>
+                                                <a href="<?php echo admin_url('opsdesk/cancel_order/' . $order['id']); ?>"
+                                                    class="opsdesk-action-btn opsdesk-action-danger _delete"
+                                                    data-toggle="tooltip"
+                                                    data-placement="top"
+                                                    title="<?php echo e(_l('opsdesk_cancel_order')); ?>">
+                                                    <i class="fa-regular fa-circle-xmark"></i>
                                                 </a>
                                                 <?php } ?>
-
-                                                <?php if (!empty($can_edit) && $order['status'] === 'pending') { ?>
-                                                <?php $accept_status = opsdesk_get_default_next_status($order['status']); ?>
-                                                <?php if ($accept_status !== '') { ?>
-                                                | <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'inline-block opsdesk-accept-form']); ?>
-                                                <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
-                                                <input type="hidden" name="status" value="<?php echo e($accept_status); ?>">
-                                                <select name="packed_by" class="form-control input-sm opsdesk-accept-packer" style="display:inline-block;width:auto;max-width:180px;vertical-align:middle;" required>
-                                                    <option value=""><?php echo _l('opsdesk_assigned_to'); ?></option>
-                                                    <?php foreach ($staff_members as $sm) { ?>
-                                                    <option value="<?php echo (int) $sm['staffid']; ?>"><?php echo e($sm['full_name']); ?></option>
-                                                    <?php } ?>
-                                                </select>
-                                                <button type="submit" class="btn btn-info btn-sm opsdesk-accept-btn button-margin-r-b" disabled>
-                                                    <?php echo _l('opsdesk_accept_order'); ?>
-                                                </button>
-                                                <?php echo form_close(); ?>
-                                                <?php } ?>
-                                                <?php } ?>
-
-                                                 <?php
-                                                 if (!empty($can_edit)) {
-                                                     $status_options = opsdesk_get_order_statuses(true);
-                                                     if (!empty($status_options)) {
-                                                 ?>
-                                                 | <?php echo form_open(admin_url('opsdesk/update_order_status'), ['class' => 'inline-block']); ?>
-                                                    <input type="hidden" name="order_id" value="<?php echo (int) $order['id']; ?>">
-                                                    <select name="status" class="selectpicker" data-width="auto" onchange="if (this.value) this.form.submit();">
-                                                        <option value=""><?php echo _l('opsdesk_update_status'); ?></option>
-                                                        <?php foreach ($status_options as $status) {
-                                                            $st = $status['status_key'];
-                                                            $is_current = $order['status'] === $st;
-                                                        ?>
-                                                        <option value="<?php echo e($st); ?>" <?php echo $is_current ? 'disabled' : ''; ?>>
-                                                            <?php echo e(opsdesk_get_order_status_label($st)); ?>
-                                                        </option>
-                                                        <?php } ?>
-                                                    </select>
-                                                 <?php echo form_close(); ?>
-                                                 <?php }
-                                                 } ?>
                                             </div>
                                         </td>
                                     </tr>
@@ -224,36 +244,99 @@
         </div>
     </div>
 </div>
+
+<?php if (!empty($can_edit)) { ?>
+<?php echo form_open(admin_url('opsdesk/update_order_status'), ['id' => 'opsdesk_status_form', 'class' => 'hide']); ?>
+<input type="hidden" name="order_id" id="opsdesk_status_order_id" value="">
+<input type="hidden" name="status" id="opsdesk_status_value" value="">
+<?php echo form_close(); ?>
+
+<div class="modal fade" id="opsdesk_accept_modal" tabindex="-1" role="dialog" aria-labelledby="opsdesk_accept_modal_title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <?php echo form_open(admin_url('opsdesk/update_order_status'), ['id' => 'opsdesk_accept_form']); ?>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo e(_l('close')); ?>">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="opsdesk_accept_modal_title"><?php echo e(_l('opsdesk_accept_order')); ?></h4>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="order_id" id="opsdesk_accept_order_id" value="">
+                <input type="hidden" name="status" id="opsdesk_accept_status" value="">
+                <p class="text-muted" id="opsdesk_accept_order_label"></p>
+                <div class="form-group">
+                    <label for="opsdesk_accept_packed_by">
+                        <?php echo e(_l('opsdesk_assigned_to')); ?>
+                        <span class="text-danger">*</span>
+                    </label>
+                    <select name="packed_by" id="opsdesk_accept_packed_by" class="selectpicker" data-width="100%" data-live-search="true" required>
+                        <option value=""><?php echo e(_l('opsdesk_assigned_to')); ?></option>
+                        <?php foreach (($staff_members ?? []) as $sm) { ?>
+                        <option value="<?php echo (int) $sm['staffid']; ?>"><?php echo e($sm['full_name']); ?></option>
+                        <?php } ?>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal"><?php echo e(_l('close')); ?></button>
+                <button type="submit" class="btn btn-success" id="opsdesk_accept_submit" disabled>
+                    <?php echo e(_l('opsdesk_accept_order')); ?>
+                </button>
+            </div>
+            <?php echo form_close(); ?>
+        </div>
+    </div>
+</div>
+<?php } ?>
+
 <?php init_tail(); ?>
 <script>
-(function () {
+(function ($) {
     "use strict";
 
     var packerRequiredMsg = <?php echo json_encode(_l('opsdesk_packed_by_required')); ?>;
+    var acceptTitle = <?php echo json_encode(_l('opsdesk_accept_order')); ?>;
 
-    function value(el) {
+    function packedByValue() {
+        var el = document.getElementById("opsdesk_accept_packed_by");
         if (!el) { return ""; }
         var v = el.value;
         return (v === null || v === undefined) ? "" : String(v).trim();
     }
 
-    function syncForm(form) {
-        var packer = form.querySelector(".opsdesk-accept-packer");
-        var btn = form.querySelector(".opsdesk-accept-btn");
-        if (!packer || !btn) { return; }
-        btn.disabled = value(packer) === "";
-    }
-
-    function syncAll() {
-        var forms = document.querySelectorAll(".opsdesk-accept-form");
-        for (var i = 0; i < forms.length; i++) {
-            syncForm(forms[i]);
+    function syncAcceptSubmit() {
+        var btn = document.getElementById("opsdesk_accept_submit");
+        if (btn) {
+            btn.disabled = packedByValue() === "";
         }
     }
 
+    function openAcceptModal(orderId, status) {
+        var $modal = $("#opsdesk_accept_modal");
+        if (!$modal.length) { return; }
+        $("#opsdesk_accept_order_id").val(orderId);
+        $("#opsdesk_accept_status").val(status);
+        $("#opsdesk_accept_order_label").text("#" + orderId);
+        $modal.find(".modal-title").text(acceptTitle + " #" + orderId);
+        $("#opsdesk_accept_packed_by").val("");
+        if ($.fn.selectpicker) {
+            $("#opsdesk_accept_packed_by").selectpicker("val", "");
+            $("#opsdesk_accept_packed_by").selectpicker("refresh");
+        }
+        syncAcceptSubmit();
+        $modal.modal("show");
+    }
+
+    function submitStatus(orderId, status) {
+        $("#opsdesk_status_order_id").val(orderId);
+        $("#opsdesk_status_value").val(status);
+        $("#opsdesk_status_form").trigger("submit");
+    }
+
     function initOrdersTable() {
-        var $table = typeof jQuery !== "undefined" ? jQuery(".opsdesk-orders-table") : null;
-        if (!$table || !$table.length) {
+        var $table = $(".opsdesk-orders-table");
+        if (!$table.length) {
             return;
         }
 
@@ -280,34 +363,103 @@
         $table.removeClass("dt-table-loading table-loading");
     }
 
-    function init() {
+    function initTooltips($root) {
+        var $scope = $root && $root.length ? $root : $(document);
+        $scope.find('[data-toggle="tooltip"]').tooltip({ container: "body" });
+    }
+
+    $(function () {
         initOrdersTable();
-        syncAll();
+        initTooltips();
 
-        // Native capture-phase change listener: fires even if a bootstrap-select
-        // handler throws or stops propagation. bootstrap-select updates the
-        // underlying <select> and dispatches a native 'change' on it.
-        document.addEventListener("change", function (e) {
-            var packer = e.target && e.target.closest
-                ? e.target.closest(".opsdesk-accept-packer")
-                : null;
-            if (!packer) { return; }
-            var form = packer.closest(".opsdesk-accept-form");
-            if (form) { syncForm(form); }
-        }, true);
+        $(document).on("click", ".opsdesk-open-accept", function (e) {
+            e.preventDefault();
+            openAcceptModal($(this).data("order-id"), $(this).data("status"));
+        });
 
-        // Safety net: keep button state correct even if change never fires
-        // (e.g. selectpicker sets value programmatically).
-        setInterval(syncAll, 500);
+        function closeStatusDropdowns() {
+            $(".opsdesk-status-dd").each(function () {
+                var $group = $(this);
+                var $menu = $group.data("opsdeskMenu");
+                if (!$menu || !$menu.length) {
+                    $menu = $group.children(".opsdesk-status-menu");
+                }
+                if ($menu && $menu.length) {
+                    $menu.removeClass("opsdesk-status-menu-open").removeAttr("style");
+                    $group.append($menu);
+                }
+                $group.removeClass("open").removeData("opsdeskMenu");
+                $group.find(".opsdesk-status-toggle").attr("aria-expanded", "false");
+            });
+        }
 
-        // Submit guard.
-        document.addEventListener("submit", function (e) {
-            var form = e.target && e.target.closest
-                ? e.target.closest(".opsdesk-accept-form")
-                : null;
-            if (!form) { return; }
-            var packer = form.querySelector(".opsdesk-accept-packer");
-            if (value(packer) === "") {
+        function openStatusDropdown($group) {
+            var $menu = $group.children(".opsdesk-status-menu");
+            var $toggle = $group.find(".opsdesk-status-toggle");
+            if (!$menu.length) { return; }
+
+            var offset = $toggle.offset();
+            $group.addClass("open").data("opsdeskMenu", $menu);
+            $toggle.attr("aria-expanded", "true");
+            if ($toggle.data("bs.tooltip")) {
+                $toggle.tooltip("hide");
+            }
+            $menu.appendTo("body").addClass("opsdesk-status-menu-open").css({
+                display: "block",
+                position: "absolute",
+                top: offset.top + $toggle.outerHeight(),
+                left: offset.left + $toggle.outerWidth() - $menu.outerWidth(),
+                zIndex: 2000
+            }).show();
+        }
+
+        $(document).on("click", ".opsdesk-status-toggle", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var $group = $(this).closest(".opsdesk-status-dd");
+            var isOpen = $group.hasClass("open");
+            closeStatusDropdowns();
+            if (!isOpen) {
+                openStatusDropdown($group);
+            }
+        });
+
+        $(document).on("click", ".opsdesk-status-pick", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var orderId = $(this).data("order-id");
+            var status = $(this).data("status");
+            closeStatusDropdowns();
+            submitStatus(orderId, status);
+        });
+
+        $(document).on("click", function (e) {
+            if ($(e.target).closest(".opsdesk-status-dd, .opsdesk-status-menu-open").length) {
+                return;
+            }
+            closeStatusDropdowns();
+        });
+
+        $(document).on("keydown", function (e) {
+            if (e.key === "Escape" || e.keyCode === 27) {
+                closeStatusDropdowns();
+            }
+        });
+
+        $(window).on("scroll resize", closeStatusDropdowns);
+        $("#wrapper").on("scroll", closeStatusDropdowns);
+
+        $(document).on("changed.bs.select change", "#opsdesk_accept_packed_by", syncAcceptSubmit);
+
+        $("#opsdesk_accept_modal").on("shown.bs.modal", function () {
+            if ($.fn.selectpicker) {
+                $("#opsdesk_accept_packed_by").selectpicker("refresh");
+            }
+            syncAcceptSubmit();
+        });
+
+        $("#opsdesk_accept_form").on("submit", function (e) {
+            if (packedByValue() === "") {
                 e.preventDefault();
                 if (typeof alert_float === "function") {
                     alert_float("warning", packerRequiredMsg);
@@ -315,17 +467,13 @@
                     alert(packerRequiredMsg);
                 }
             }
-        }, true);
-    }
+        });
 
-    if (typeof jQuery !== "undefined") {
-        jQuery(init);
-    } else if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-    } else {
-        init();
-    }
-})();
+        $(".opsdesk-orders-table").on("draw.dt", function () {
+            initTooltips($(".opsdesk-orders-table"));
+        });
+    });
+})(jQuery);
 </script>
 </body>
 </html>

@@ -759,6 +759,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             ];
         }
         $data['can_edit']      = opsdesk_can_edit_orders();
+        $data['can_delete']    = opsdesk_can_delete_orders();
         $data['can_create']    = opsdesk_can_create_orders();
         $data['global_view']   = !$own_only;
         $data['staff_members'] = opsdesk_get_staff_members();
@@ -1178,6 +1179,46 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         }
 
         redirect(admin_url('opsdesk/order/' . $id));
+    }
+
+    /**
+     * Permanently delete a cancelled or completed order.
+     *
+     * Active orders must be cancelled first so reserved stock is released by
+     * the normal cancellation workflow.
+     *
+     * @param mixed $id
+     * @return void
+     */
+    public function delete_order($id = '')
+    {
+        if (!opsdesk_can_delete_orders()) {
+            access_denied('opsdesk_orders');
+        }
+
+        if (!is_numeric($id)) {
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        $order = $this->opsdesk_orders_model->get((int) $id);
+        if (!$order) {
+            set_alert('warning', _l('opsdesk_order_not_found'));
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        if (!in_array($order['status'], ['cancelled', 'completed'], true)) {
+            set_alert('warning', _l('opsdesk_order_delete_requires_final_status'));
+            redirect(admin_url('opsdesk/orders'));
+        }
+
+        if ($this->opsdesk_orders_model->delete((int) $id)) {
+            log_activity('OpsDesk Order Deleted [ID:' . (int) $id . ']');
+            set_alert('success', _l('deleted', _l('opsdesk_order')));
+        } else {
+            set_alert('warning', _l('problem_deleting', _l('opsdesk_order')));
+        }
+
+        redirect(admin_url('opsdesk/orders'));
     }
 
     /**

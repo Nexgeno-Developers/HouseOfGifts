@@ -158,6 +158,8 @@
                                             } elseif ($is_own && $order['status'] === 'pending') {
                                                 $can_cancel = true;
                                             }
+                                            $can_hard_delete = !empty($can_delete)
+                                                && in_array($order['status'], ['cancelled', 'completed'], true);
                                             $accept_status = '';
                                             $show_accept   = false;
                                             if (!empty($can_edit) && $order['status'] === 'pending') {
@@ -229,6 +231,15 @@
                                                     data-placement="top"
                                                     title="<?php echo e(_l('opsdesk_cancel_order')); ?>">
                                                     <i class="fa-regular fa-circle-xmark"></i>
+                                                </a>
+                                                <?php } ?>
+                                                <?php if ($can_hard_delete) { ?>
+                                                <a href="<?php echo admin_url('opsdesk/delete_order/' . $order['id']); ?>"
+                                                    class="opsdesk-action-btn opsdesk-action-danger _delete"
+                                                    data-toggle="tooltip"
+                                                    data-placement="top"
+                                                    title="<?php echo e(_l('opsdesk_delete_order')); ?>">
+                                                    <i class="fa fa-trash"></i>
                                                 </a>
                                                 <?php } ?>
                                             </div>

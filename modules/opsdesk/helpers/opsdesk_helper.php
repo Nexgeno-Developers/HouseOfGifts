@@ -614,6 +614,18 @@ function opsdesk_can_edit_orders()
 }
 
 /**
+ * Whether staff can permanently delete eligible orders.
+ *
+ * @return bool
+ */
+function opsdesk_can_delete_orders()
+{
+    return staff_can('delete', 'opsdesk_orders')
+        || has_permission('opsdesk_orders', '', 'delete')
+        || is_admin();
+}
+
+/**
  * Whether an order is locked from further changes because no packer
  * (Packed By / Assigned to) has been set yet.
  *

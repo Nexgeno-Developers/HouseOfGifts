@@ -11,6 +11,8 @@
         <label for="opsdesk_bypass_stock_check" class="control-label">
             <?php echo _l('opsdesk_bypass_stock_check'); ?>
         </label>
+        <?php // Submitted when the switch is off, so the value always reaches the controller. ?>
+        <input type="hidden" name="opsdesk_bypass_stock_check" value="0">
         <div class="onoffswitch">
             <input type="checkbox" name="opsdesk_bypass_stock_check" class="onoffswitch-checkbox"
                 id="opsdesk_bypass_stock_check" value="1"

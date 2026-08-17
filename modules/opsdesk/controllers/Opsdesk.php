@@ -84,7 +84,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
 
         $this->app_scripts->add(
             'opsdesk-settings-js',
-            module_dir_url(OPSDESK_MODULE_NAME, 'assets/js/opsdesk_settings.js')
+            opsdesk_asset_url('assets/js/opsdesk_settings.js')
         );
 
         $this->load->view('settings', $data);
@@ -99,8 +99,10 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             access_denied('opsdesk');
         }
 
-        if ($this->input->post()) {
-            $enabled = $this->input->post('opsdesk_bypass_stock_check') ? '1' : '0';
+        // Keyed on the request method, not on a non-empty payload: an
+        // unchecked switch can leave the POST body completely empty.
+        if ($this->input->method() === 'post') {
+            $enabled = $this->input->post('opsdesk_bypass_stock_check') == '1' ? '1' : '0';
             update_option('opsdesk_bypass_stock_check', $enabled);
             set_alert('success', _l('updated_successfully', _l('settings')));
         }
@@ -342,7 +344,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
 
         $this->app_scripts->add(
             'opsdesk-inventory-js',
-            module_dir_url(OPSDESK_MODULE_NAME, 'assets/js/opsdesk_inventory.js')
+            opsdesk_asset_url('assets/js/opsdesk_inventory.js')
         );
 
         $this->load->view('inventory_viewer', $data);
@@ -812,7 +814,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
 
         $this->app_scripts->add(
             'opsdesk-orders-js',
-            module_dir_url(OPSDESK_MODULE_NAME, 'assets/js/opsdesk_orders.js')
+            opsdesk_asset_url('assets/js/opsdesk_orders.js')
         );
 
         $this->load->view('order_form', $data);

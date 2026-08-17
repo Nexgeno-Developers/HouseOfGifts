@@ -261,7 +261,7 @@
 
 <?php init_tail(); ?>
 
-<script src="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/js/opsdesk_orders.js'); ?>"></script>
+<script src="<?php echo opsdesk_asset_url('assets/js/opsdesk_orders.js'); ?>"></script>
 
 </body>
 </html>

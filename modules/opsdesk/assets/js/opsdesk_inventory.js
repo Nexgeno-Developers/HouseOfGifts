@@ -331,6 +331,12 @@
       return;
     }
 
+    // With the stock check bypassed the order can always be raised, so the
+    // button only needs a combo to carry over to the order form.
+    if (stockCheckBypassed() && $("#opsdesk_combo_id").val()) {
+      show = true;
+    }
+
     if (show) {
       $("#opsdesk_create_order_wrap").removeClass("hide");
       $("#opsdesk_create_order_btn").attr("href", buildCreateOrderUrl());
@@ -650,6 +656,7 @@
       newCombo = false;
       $("#opsdesk_check_btn").html(checkBtnDefaultHtml);
       populateProductSelector();
+      updateCreateOrderButton(false);
       debouncedFetch();
     });
 

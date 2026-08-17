@@ -713,6 +713,27 @@ function opsdesk_bypass_stock_check()
 }
 
 /**
+ * Module asset URL carrying a cache-busting version.
+ *
+ * module_dir_url() returns an absolute URL, which App_assets leaves
+ * unversioned, so browsers keep serving a stale copy after a deploy.
+ *
+ * @param string $relative_path e.g. assets/js/opsdesk_inventory.js
+ * @return string
+ */
+function opsdesk_asset_url($relative_path)
+{
+    $url  = module_dir_url(OPSDESK_MODULE_NAME, $relative_path);
+    $file = module_dir_path(OPSDESK_MODULE_NAME, $relative_path);
+
+    if (is_file($file)) {
+        $url .= (strpos($url, '?') === false ? '?' : '&') . 'v=' . filemtime($file);
+    }
+
+    return $url;
+}
+
+/**
  * Absolute filesystem path for OpsDesk uploads.
  *
  * @return string

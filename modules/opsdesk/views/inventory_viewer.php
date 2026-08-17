@@ -1,6 +1,6 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
-<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
+<link rel="stylesheet" href="<?php echo opsdesk_asset_url('assets/css/opsdesk.css'); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">

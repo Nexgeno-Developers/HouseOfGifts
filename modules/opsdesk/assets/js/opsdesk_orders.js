@@ -145,6 +145,10 @@ function getCsrfPostData() {
         "</td></tr>",
     );
     $("#opsdesk_order_summary").addClass("hide");
+    $("#opsdesk_open_add_item").prop(
+      "disabled",
+      !$("#opsdesk_order_combo_id").val(),
+    );
   }
 
   function showAlert(type, msg) {
@@ -202,21 +206,30 @@ function getCsrfPostData() {
           '"></i> ' +
           statusText +
           "</span></td>";
-        html += '<td class="text-center">';
-        if (row.combo_item_id) {
-          html +=
-            '<button type="button" class="btn btn-xs btn-default opsdesk-sub-btn" data-combo-item-id="' +
-            escapeHtml(String(row.combo_item_id)) +
-            '">' +
-            escapeHtml(opsdeskOrderLang.substitute) +
-            "</button>";
-        }
+        html += '<td class="text-center opsdesk-row-actions">';
+        html +=
+          '<button type="button" class="btn btn-xs btn-default opsdesk-sub-btn" data-combo-item-id="' +
+          escapeHtml(String(row.combo_item_id || "")) +
+          '" data-sku="' +
+          escapeHtml(String(row.sku || "")) +
+          '">' +
+          '<i class="fa fa-exchange"></i> ' +
+          escapeHtml(opsdeskOrderLang.substitute) +
+          "</button> ";
+        html +=
+          '<button type="button" class="btn btn-xs btn-danger opsdesk-remove-item" data-combo-item-id="' +
+          escapeHtml(String(row.combo_item_id || "")) +
+          '" data-sku="' +
+          escapeHtml(String(row.sku || "")) +
+          '">' +
+          '<i class="fa fa-trash"></i></button>';
         html += "</td>";
         html += "</tr>";
       });
     }
 
     $("#opsdesk_order_components_body").html(html);
+    $("#opsdesk_open_add_item").prop("disabled", !$("#opsdesk_order_combo_id").val());
 
     var summary = $("#opsdesk_order_summary");
     summary.removeClass("hide alert-success alert-danger alert-warning");
@@ -262,23 +275,148 @@ function getCsrfPostData() {
     );
   }
 
-  function openSubstituteModal(comboItemId) {
-    $("#opsdesk_sub_combo_item_id").val(comboItemId);
+  function openProductModal(mode, comboItemId, sku) {
+    if (!$("#opsdesk_order_combo_id").val()) {
+      alert(opsdeskOrderLang.selectCombo || opsdeskOrderLang.error);
+      return;
+    }
+
+    $("#opsdesk_product_modal_mode").val(mode);
+    $("#opsdesk_product_modal_title").text(
+      mode === "add" ? opsdeskOrderLang.addItem : opsdeskOrderLang.substitute,
+    );
+    $("#opsdesk_sub_combo_item_id").val(comboItemId || "");
+    $("#opsdesk_sub_original_sku").val(sku || "");
     $("#opsdesk_sub_product_id").val("").selectpicker("refresh");
     $("#opsdesk_substitute_modal").modal("show");
   }
 
-  function applySubstitute() {
+  function openSubstituteModal(comboItemId, sku) {
+    openProductModal("substitute", comboItemId, sku);
+  }
+
+  function getProductDetails(productId, callback) {
+    var postData = {
+      combo_id: $("#opsdesk_order_combo_id").val(),
+      action: "get_product_details",
+      product_id: productId,
+      order_quantity: parseFloat($("#opsdesk_order_qty").val()) || 1,
+    };
+
+    $.extend(postData, getCsrfPostData());
+
+    $.post(opsdeskProductDetailsUrl, postData)
+      .done(function (response) {
+        if (typeof response === "string") {
+          try {
+            response = JSON.parse(response);
+          } catch (e) {
+            callback(null);
+            return;
+          }
+        }
+        if (response.success && response.product) {
+          callback(response.product);
+        } else {
+          callback(null);
+        }
+      })
+      .fail(function () {
+        callback(null);
+      });
+  }
+
+  function applyProductModal() {
+    var mode = $("#opsdesk_product_modal_mode").val();
     var comboItemId = $("#opsdesk_sub_combo_item_id").val();
     var productId = $("#opsdesk_sub_product_id").val();
+    var originalSku = $("#opsdesk_sub_original_sku").val();
 
-    if (!comboItemId || !productId) {
+    if (!productId) {
       return;
     }
 
-    overrides.substitutions[String(comboItemId)] = parseInt(productId, 10);
+    if (mode === "add") {
+      getProductDetails(productId, function (product) {
+        if (!product) {
+          alert(opsdeskOrderLang.error);
+          return;
+        }
+
+        var qty = parseFloat($("#opsdesk_order_qty").val()) || 1;
+        overrides.added.push({
+          product_item_id: product.product_item_id,
+          sku: product.sku,
+          product_name: product.product_name,
+          quantity_per_unit: product.quantity_per_unit || 1,
+          required_quantity: (product.quantity_per_unit || 1) * qty,
+        });
+        syncOverridesField();
+        $("#opsdesk_substitute_modal").modal("hide");
+        fetchStockCheck();
+      });
+      return;
+    }
+
+    if (comboItemId) {
+      overrides.substitutions[String(comboItemId)] = parseInt(productId, 10);
+      syncOverridesField();
+      $("#opsdesk_substitute_modal").modal("hide");
+      fetchStockCheck();
+      return;
+    }
+
+    getProductDetails(productId, function (product) {
+      if (!product) {
+        alert(opsdeskOrderLang.error);
+        return;
+      }
+
+      var qty = parseFloat($("#opsdesk_order_qty").val()) || 1;
+      var replaced = false;
+      overrides.added = $.map(overrides.added, function (item) {
+        if (!replaced && String(item.sku) === String(originalSku)) {
+          replaced = true;
+          return {
+            product_item_id: product.product_item_id,
+            sku: product.sku,
+            product_name: product.product_name,
+            quantity_per_unit: product.quantity_per_unit || 1,
+            required_quantity: (product.quantity_per_unit || 1) * qty,
+          };
+        }
+        return item;
+      });
+
+      syncOverridesField();
+      $("#opsdesk_substitute_modal").modal("hide");
+      fetchStockCheck();
+    });
+  }
+
+  function applySubstitute() {
+    applyProductModal();
+  }
+
+  function removeOrderItem(comboItemId, sku) {
+    comboItemId = comboItemId ? String(comboItemId) : "";
+    sku = sku ? String(sku) : "";
+
+    if (comboItemId) {
+      if (overrides.removed.indexOf(comboItemId) === -1) {
+        overrides.removed.push(comboItemId);
+      }
+      delete overrides.substitutions[comboItemId];
+      if (overrides.quantities) {
+        delete overrides.quantities[comboItemId];
+      }
+    } else if (sku) {
+      overrides.added = $.grep(overrides.added, function (item) {
+        return String(item.sku) !== sku;
+      });
+    }
+
     syncOverridesField();
-    $("#opsdesk_substitute_modal").modal("hide");
     fetchStockCheck();
   }
 
@@ -353,12 +491,18 @@ function getCsrfPostData() {
 
     applyPrefill();
 
+    $("#opsdesk_open_add_item").prop(
+      "disabled",
+      !$("#opsdesk_order_combo_id").val(),
+    );
+
     if ($("#opsdesk_order_combo_id").val()) {
       fetchStockCheck();
     }
 
     $("#opsdesk_order_combo_id").on("change changed.bs.select", function () {
         resetOverrides();
+        $("#opsdesk_open_add_item").prop("disabled", !$(this).val());
         debouncedStockCheck();
     });
 
@@ -378,7 +522,15 @@ function getCsrfPostData() {
     });
 
     $(document).on("click", ".opsdesk-sub-btn", function () {
-      openSubstituteModal($(this).data("combo-item-id"));
+      openSubstituteModal($(this).data("combo-item-id"), $(this).data("sku"));
+    });
+
+    $(document).on("click", ".opsdesk-remove-item", function () {
+      removeOrderItem($(this).data("combo-item-id"), $(this).data("sku"));
+    });
+
+    $("#opsdesk_open_add_item").on("click", function () {
+      openProductModal("add");
     });
 
     $("#opsdesk_apply_substitute").on("click", applySubstitute);

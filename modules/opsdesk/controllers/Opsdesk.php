@@ -1451,6 +1451,19 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $built     = $this->opsdesk_orders_model->build_order_items($combo_id, $quantity, $overrides);
 
         if (!$built['success']) {
+            if (($built['message'] ?? '') === _l('opsdesk_no_order_items')) {
+                echo json_encode([
+                    'success' => true,
+                    'data'    => [
+                        'is_fulfillable' => false,
+                        'components'     => [],
+                        'combo_id'       => $combo_id,
+                        'order_quantity' => $quantity,
+                    ],
+                ]);
+                die;
+            }
+
             echo json_encode(['success' => false, 'message' => $built['message']]);
             die;
         }

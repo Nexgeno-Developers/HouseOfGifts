@@ -759,6 +759,22 @@ function opsdesk_file_url($stored)
 }
 
 /**
+ * Public URL for a combo product image, or the module placeholder.
+ *
+ * @param string|null $stored
+ * @return string
+ */
+function opsdesk_combo_image_url($stored = null)
+{
+    $url = opsdesk_file_url($stored);
+    if ($url !== '') {
+        return $url;
+    }
+
+    return module_dir_url(OPSDESK_MODULE_NAME, 'assets/images/combo-placeholder.svg');
+}
+
+/**
  * Allowed upload extensions (PDF, images, common office docs).
  *
  * @return array

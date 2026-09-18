@@ -191,6 +191,8 @@ $lang['opsdesk_count_by']               = 'Counted by';
 $lang['opsdesk_count_by_required_for_completion'] = 'Please select who counted the cartons.';
 $lang['opsdesk_combo_image']            = 'Combo Image';
 $lang['opsdesk_combo_image_help']       = 'Upload an image to help Sales and Operations identify this combo.';
+$lang['opsdesk_image']                  = 'Image';
+$lang['opsdesk_image_preview']          = 'Image preview';
 $lang['opsdesk_no_image']               = 'No image';
 
 // Phase 3 — Priority Orders & Notifications

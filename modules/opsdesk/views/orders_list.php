@@ -89,7 +89,7 @@
                             <thead>
                                 <tr>
                                     <th><?php echo _l('opsdesk_order_id'); ?></th>
-                                    <th><?php echo _l('opsdesk_priority'); ?></th>
+                                    <th><?php echo _l('opsdesk_image'); ?></th>
                                     <th><?php echo _l('opsdesk_delivery_date'); ?></th>
                                     <th><?php echo _l('opsdesk_combo_name'); ?></th>
                                     <th><?php echo _l('opsdesk_customer'); ?></th>
@@ -113,7 +113,22 @@
                                                 #<?php echo (int) $order['id']; ?>
                                             </a>
                                         </td>
-                                        <td data-order="<?php echo (int) $order['priority']; ?>"><?php echo opsdesk_get_priority_badge($order['priority']); ?></td>
+                                        <td>
+                                            <?php
+                                            $combo_image_url = opsdesk_combo_image_url($order['combo_image'] ?? '');
+                                            $combo_placeholder = module_dir_url(OPSDESK_MODULE_NAME, 'assets/images/combo-placeholder.svg');
+                                            $combo_label     = $order['combo_name'] ?: _l('opsdesk_combo_image');
+                                            ?>
+                                            <button type="button"
+                                                class="opsdesk-combo-thumb"
+                                                data-preview-src="<?php echo e($combo_image_url); ?>"
+                                                data-preview-title="<?php echo e($combo_label); ?>"
+                                                title="<?php echo e(_l('opsdesk_image_preview')); ?>">
+                                                <img src="<?php echo e($combo_image_url); ?>"
+                                                    alt="<?php echo e($combo_label); ?>"
+                                                    onerror="this.onerror=null;this.src='<?php echo e($combo_placeholder); ?>';this.closest('.opsdesk-combo-thumb').setAttribute('data-preview-src','<?php echo e($combo_placeholder); ?>');">
+                                            </button>
+                                        </td>
                                         <td data-order="<?php echo e($order['delivery_date'] ?? ''); ?>">
                                             <?php if (!empty($order['delivery_date'])) { ?>
                                                 <?php
@@ -301,6 +316,25 @@
 </div>
 <?php } ?>
 
+<div class="modal fade" id="opsdesk_image_preview_modal" tabindex="-1" role="dialog" aria-labelledby="opsdesk_image_preview_title">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo e(_l('close')); ?>">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="opsdesk_image_preview_title"><?php echo e(_l('opsdesk_image_preview')); ?></h4>
+            </div>
+            <div class="modal-body text-center">
+                <img id="opsdesk_image_preview_img" src="" alt="" class="opsdesk-image-preview-full">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal"><?php echo e(_l('close')); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php init_tail(); ?>
 <script>
 (function ($) {
@@ -359,6 +393,7 @@
                     autoWidth: false,
                     order: [[0, "desc"]],
                     columnDefs: [
+                        { orderable: false, searchable: false, targets: 1 },
                         { orderable: false, targets: -1 },
                         { searchable: false, targets: -1 }
                     ]
@@ -482,6 +517,22 @@
 
         $(".opsdesk-orders-table").on("draw.dt", function () {
             initTooltips($(".opsdesk-orders-table"));
+        });
+
+        $(document).on("click", ".opsdesk-combo-thumb", function (e) {
+            e.preventDefault();
+            var src = $(this).attr("data-preview-src") || "";
+            var title = $(this).attr("data-preview-title") || "";
+            if (!src) {
+                return;
+            }
+            $("#opsdesk_image_preview_title").text(title);
+            $("#opsdesk_image_preview_img").attr("src", src).attr("alt", title);
+            $("#opsdesk_image_preview_modal").modal("show");
+        });
+
+        $("#opsdesk_image_preview_modal").on("hidden.bs.modal", function () {
+            $("#opsdesk_image_preview_img").attr("src", "").attr("alt", "");
         });
     });
 })(jQuery);

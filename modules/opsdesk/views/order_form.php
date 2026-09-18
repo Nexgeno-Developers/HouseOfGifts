@@ -1,6 +1,6 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
-<link rel="stylesheet" href="<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/css/opsdesk.css'); ?>">
+<link rel="stylesheet" href="<?php echo opsdesk_asset_url('assets/css/opsdesk.css'); ?>">
 <div id="wrapper">
     <div class="content">
         <div class="row">
@@ -20,6 +20,7 @@
                                         <?php echo _l('opsdesk_select_combo'); ?> <span class="text-danger">*</span>
                                     </label>
                                     <select name="combo_id" id="opsdesk_order_combo_id" class="selectpicker" data-width="100%" required
+                                        data-live-search="true"
                                         data-none-selected-text="<?php echo _l('dropdown_non_selected_tex'); ?>">
                                         <option value=""></option>
                                         <?php foreach ($combos as $combo) { ?>
@@ -140,7 +141,14 @@
                                             <th class="text-right"><?php echo _l('opsdesk_available_stock'); ?></th>
                                             <th class="text-right"><?php echo _l('opsdesk_quantity_needed'); ?></th>
                                             <th class="text-center"><?php echo _l('opsdesk_status'); ?></th>
-                                            <th class="text-center"><?php echo _l('opsdesk_actions'); ?></th>
+                                            <th class="text-center opsdesk-actions-th" style="width: 200px;">
+                                                <?php echo _l('opsdesk_actions'); ?>
+                                                <button type="button" id="opsdesk_open_add_item"
+                                                    class="btn btn-success btn-xs" disabled
+                                                    title="<?php echo e(_l('opsdesk_add_item')); ?>">
+                                                    <i class="fa fa-plus"></i>
+                                                </button>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody id="opsdesk_order_components_body">
@@ -214,10 +222,12 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title"><?php echo _l('opsdesk_substitute'); ?></h4>
+                <h4 class="modal-title" id="opsdesk_product_modal_title"><?php echo _l('opsdesk_substitute'); ?></h4>
             </div>
             <div class="modal-body">
+                <input type="hidden" id="opsdesk_product_modal_mode" value="substitute">
                 <input type="hidden" id="opsdesk_sub_combo_item_id" value="">
+                <input type="hidden" id="opsdesk_sub_original_sku" value="">
                 <div class="form-group select-placeholder">
                     <label><?php echo _l('opsdesk_product_select'); ?></label>
                     <select id="opsdesk_sub_product_id" class="selectpicker" data-width="100%" data-live-search="true">
@@ -252,6 +262,8 @@
         componentsInsufficient: '<?php echo _l('opsdesk_components_insufficient'); ?>',
         substitution: '<?php echo _l('opsdesk_substitution'); ?>',
         substitute: '<?php echo _l('opsdesk_substitute'); ?>',
+        addItem: '<?php echo _l('opsdesk_add_item'); ?>',
+        selectCombo: '<?php echo _l('opsdesk_select_combo_to_begin'); ?>',
         error: '<?php echo _l('opsdesk_error_loading'); ?>',
         billRequired: '<?php echo _l('opsdesk_bill_required'); ?>',
         noCustomerMatch: '<?php echo _l('opsdesk_no_customer_match'); ?>',

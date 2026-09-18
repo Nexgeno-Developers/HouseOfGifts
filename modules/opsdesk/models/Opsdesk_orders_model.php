@@ -8,6 +8,7 @@ class Opsdesk_orders_model extends App_Model
     private $table_items;
     private $table_log;
     private $table_inventory;
+    private $table_combos;
 
     public function __construct()
     {
@@ -23,6 +24,7 @@ class Opsdesk_orders_model extends App_Model
         $this->table_items     = $prefix . 'opsdesk_order_items';
         $this->table_log       = $prefix . 'opsdesk_order_status_log';
         $this->table_inventory = $prefix . 'opsdesk_inventory';
+        $this->table_combos    = $prefix . 'opsdesk_combos';
     }
 
     /**
@@ -1026,7 +1028,8 @@ class Opsdesk_orders_model extends App_Model
         $this->db->select(
             $this->table_orders . '.*,' .
             'CONCAT(' . db_prefix() . 'staff.firstname, " ", ' . db_prefix() . 'staff.lastname) as creator_name,' .
-            db_prefix() . 'clients.company as customer_name',
+            db_prefix() . 'clients.company as customer_name,' .
+            $this->table_combos . '.image as combo_image',
             false
         );
         $this->db->join(
@@ -1037,6 +1040,11 @@ class Opsdesk_orders_model extends App_Model
         $this->db->join(
             db_prefix() . 'clients',
             db_prefix() . 'clients.userid = ' . $this->table_orders . '.customer_id',
+            'left'
+        );
+        $this->db->join(
+            $this->table_combos,
+            $this->table_combos . '.id = ' . $this->table_orders . '.combo_id',
             'left'
         );
     }

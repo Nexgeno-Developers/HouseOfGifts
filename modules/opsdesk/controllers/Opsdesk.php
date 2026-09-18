@@ -746,6 +746,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             'priority' => $priority_filter,
             'sort_by_delivery_date' => $delivery_sort,
         ]);
+        $this->opsdesk_orders_model->attach_order_galleries($data['orders']);
         $data['status_filter']   = $status_filter;
         $data['priority_filter'] = $priority_filter;
         $data['delivery_sort']   = $delivery_sort;
@@ -869,16 +870,37 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             redirect(admin_url('opsdesk/order'));
         }
 
-        $combo_id     = (int) $this->input->post('combo_id');
-        $quantity     = (float) $this->input->post('quantity');
-        $packing_type = trim($this->input->post('packing_type') ?? '');
-        $priority     = (int) $this->input->post('priority');
-        $priority     = in_array($priority, [0, 1], true) ? $priority : 0;
-        $transport_medium_id = (int) $this->input->post('transport_medium_id');
-        $delivery_date = trim($this->input->post('delivery_date') ?? '');
-        $packing_types = array_keys(opsdesk_get_packing_types());
+        $combos = $this->input->post('combos');
+        if (is_string($combos)) {
+            $combos = json_decode($combos, true) ?: [];
+        } elseif (!is_array($combos)) {
+            $combos = [];
+        }
 
-        if ($combo_id <= 0 || $quantity < 1 || !in_array($packing_type, $packing_types, true) || $transport_medium_id <= 0) {
+        // Fallback for single legacy input
+        $legacy_combo_id = (int) $this->input->post('combo_id');
+        $legacy_quantity = (float) $this->input->post('quantity');
+        if (empty($combos) && $legacy_combo_id > 0 && $legacy_quantity > 0) {
+            $combos = [
+                ['combo_id' => $legacy_combo_id, 'quantity' => $legacy_quantity]
+            ];
+        }
+
+        $products = $this->input->post('products');
+        if (is_string($products)) {
+            $products = json_decode($products, true) ?: [];
+        } elseif (!is_array($products)) {
+            $products = [];
+        }
+
+        $packing_type        = trim($this->input->post('packing_type') ?? '');
+        $priority            = (int) $this->input->post('priority');
+        $priority            = in_array($priority, [0, 1], true) ? $priority : 0;
+        $transport_medium_id = (int) $this->input->post('transport_medium_id');
+        $delivery_date       = trim($this->input->post('delivery_date') ?? '');
+        $packing_types       = array_keys(opsdesk_get_packing_types());
+
+        if ((empty($combos) && empty($products)) || !in_array($packing_type, $packing_types, true) || $transport_medium_id <= 0) {
             set_alert('warning', _l('opsdesk_invalid_request'));
             redirect(admin_url('opsdesk/order'));
         }
@@ -899,11 +921,38 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         }
 
         $overrides = $this->parse_order_overrides_from_post();
-        $built     = $this->opsdesk_orders_model->build_order_items($combo_id, $quantity, $overrides);
+        $built     = $this->opsdesk_orders_model->build_multi_order_items($combos, $products, $overrides);
 
         if (!$built['success']) {
             set_alert('warning', $built['message']);
             redirect(admin_url('opsdesk/order'));
+        }
+
+        // Calculate summary info
+        $summary_parts = [];
+        $total_qty = 0.0;
+        $primary_combo_id = null;
+
+        if (!empty($built['combos'])) {
+            if (count($built['combos']) === 1 && empty($built['products'])) {
+                $primary_combo_id = (int) $built['combos'][0]['combo_id'];
+            }
+            foreach ($built['combos'] as $c) {
+                $summary_parts[] = $c['combo_name'] . ' (x' . (float) $c['quantity'] . ')';
+                $total_qty += (float) $c['quantity'];
+            }
+        }
+
+        if (!empty($built['products'])) {
+            foreach ($built['products'] as $p) {
+                $summary_parts[] = $p['product_name'] . ' (x' . (float) $p['quantity'] . ')';
+                $total_qty += (float) $p['quantity'];
+            }
+        }
+
+        $combo_name_summary = implode(', ', $summary_parts);
+        if (mb_strlen($combo_name_summary) > 190) {
+            $combo_name_summary = mb_substr($combo_name_summary, 0, 187) . '...';
         }
 
         // Customer linkage
@@ -914,7 +963,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             $client = get_client($customer_id);
             if (!$client) {
                 set_alert('warning', _l('opsdesk_customer_not_found'));
-                redirect(admin_url('opsdesk/order?combo_id=' . $combo_id . '&quantity=' . $quantity));
+                redirect(admin_url('opsdesk/order'));
             }
             if ($customer_city === '') {
                 $customer_city = trim($client->city ?? '');
@@ -925,7 +974,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $bill_upload = opsdesk_handle_upload('bill_file');
         if (!$bill_upload['success']) {
             set_alert('warning', _l('opsdesk_bill_required') . ' ' . $bill_upload['message']);
-            redirect(admin_url('opsdesk/order?combo_id=' . $combo_id . '&quantity=' . $quantity));
+            redirect(admin_url('opsdesk/order'));
         }
 
         // Optional payment upload
@@ -934,34 +983,33 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             $payment_upload = opsdesk_handle_upload('payment_file');
             if (!$payment_upload['success']) {
                 set_alert('warning', _l('opsdesk_invalid_file_type') . ' ' . $payment_upload['message']);
-                redirect(admin_url('opsdesk/order?combo_id=' . $combo_id . '&quantity=' . $quantity));
+                redirect(admin_url('opsdesk/order'));
             }
             $payment_file = $payment_upload['file'];
         }
 
-        $combo = $built['combo'];
         $result = $this->opsdesk_orders_model->create_order_with_reservation([
-            'combo_id'     => $combo_id,
-            'combo_name'   => $combo->name,
-            'customer_id'  => $customer_id > 0 ? $customer_id : null,
-            'customer_city' => $customer_city,
-            'quantity'     => $quantity,
-            'packing_type' => $packing_type,
+            'combo_id'            => $primary_combo_id,
+            'combo_name'          => $combo_name_summary,
+            'customer_id'         => $customer_id > 0 ? $customer_id : null,
+            'customer_city'       => $customer_city,
+            'quantity'            => max(1.0, $total_qty),
+            'packing_type'        => $packing_type,
             'transport_medium_id' => $transport_medium_id,
-            'delivery_date' => $delivery_date,
-            'notes'        => trim($this->input->post('notes') ?? ''),
-            'bill_file'    => $bill_upload['file'],
-            'payment_file' => $payment_file,
-            'priority'     => $priority,
-            'created_by'   => get_staff_user_id(),
-        ], $built['items']);
+            'delivery_date'       => $delivery_date,
+            'notes'               => trim($this->input->post('notes') ?? ''),
+            'bill_file'           => $bill_upload['file'],
+            'payment_file'        => $payment_file,
+            'priority'            => $priority,
+            'created_by'          => get_staff_user_id(),
+        ], $built['items'], $built['combos']);
 
         if (!$result['success']) {
             set_alert('warning', $result['message']);
-            redirect(admin_url('opsdesk/order?combo_id=' . $combo_id . '&quantity=' . $quantity));
+            redirect(admin_url('opsdesk/order'));
         }
 
-        // FR-021.1: fire notification AFTER commit (outside transaction).
+        // Fire notification AFTER commit
         try {
             opsdesk_notify_new_order($result['order_id'], get_staff_user_id());
         } catch (Exception $e) {
@@ -1439,16 +1487,45 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             ajax_access_denied();
         }
 
-        $combo_id = (int) $this->input->post('combo_id');
-        $quantity = (int) $this->input->post('quantity');
+        $combos = $this->input->post('combos');
+        if (is_string($combos)) {
+            $combos = json_decode($combos, true) ?: [];
+        } elseif (!is_array($combos)) {
+            $combos = [];
+        }
 
-        if ($combo_id <= 0 || $quantity < 1) {
-            echo json_encode(['success' => false, 'message' => _l('opsdesk_invalid_request')]);
-            die;
+        // Fallback for single legacy combo_id / quantity inputs
+        $legacy_combo_id = (int) $this->input->post('combo_id');
+        $legacy_quantity = (float) $this->input->post('quantity');
+        if (empty($combos) && $legacy_combo_id > 0 && $legacy_quantity > 0) {
+            $combos = [
+                ['combo_id' => $legacy_combo_id, 'quantity' => $legacy_quantity]
+            ];
+        }
+
+        $products = $this->input->post('products');
+        if (is_string($products)) {
+            $products = json_decode($products, true) ?: [];
+        } elseif (!is_array($products)) {
+            $products = [];
         }
 
         $overrides = $this->parse_order_overrides_from_post();
-        $built     = $this->opsdesk_orders_model->build_order_items($combo_id, $quantity, $overrides);
+
+        if (empty($combos) && empty($products)) {
+            echo json_encode([
+                'success' => true,
+                'data'    => [
+                    'is_fulfillable' => false,
+                    'components'     => [],
+                    'combos'         => [],
+                    'products'       => [],
+                ],
+            ]);
+            die;
+        }
+
+        $built = $this->opsdesk_orders_model->build_multi_order_items($combos, $products, $overrides);
 
         if (!$built['success']) {
             if (($built['message'] ?? '') === _l('opsdesk_no_order_items')) {
@@ -1457,8 +1534,8 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
                     'data'    => [
                         'is_fulfillable' => false,
                         'components'     => [],
-                        'combo_id'       => $combo_id,
-                        'order_quantity' => $quantity,
+                        'combos'         => $combos,
+                        'products'       => $products,
                     ],
                 ]);
                 die;
@@ -1468,13 +1545,13 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             die;
         }
 
-        $check = $this->opsdesk_orders_model->check_items_stock($built['items'], $quantity);
+        $check = $this->opsdesk_orders_model->check_items_stock($built['items'], 1.0);
 
         echo json_encode([
             'success' => true,
             'data'    => array_merge($check, [
-                'combo_id'       => $combo_id,
-                'order_quantity' => $quantity,
+                'combos'   => $built['combos'],
+                'products' => $built['products'],
             ]),
         ]);
         die;

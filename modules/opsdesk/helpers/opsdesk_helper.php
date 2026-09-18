@@ -775,6 +775,70 @@ function opsdesk_combo_image_url($stored = null)
 }
 
 /**
+ * Public URL for a product item's image from Warehouse module or item attachments.
+ *
+ * @param int|null $product_item_id
+ * @param string   $sku
+ * @return string|null
+ */
+function opsdesk_get_product_image_url($product_item_id, $sku = '')
+{
+    $CI = &get_instance();
+
+    $product_item_id = (int) $product_item_id;
+
+    if ($product_item_id <= 0 && $sku !== '') {
+        $sku_clean = trim($sku);
+        $CI->db->select('id');
+        $CI->db->from(db_prefix() . 'items');
+        $CI->db->group_start();
+        $CI->db->where('commodity_code', $sku_clean);
+        $CI->db->or_where('sku_code', $sku_clean);
+        $CI->db->or_like('description', $sku_clean, 'after');
+        $CI->db->group_end();
+        $CI->db->limit(1);
+        $item_row = $CI->db->get()->row_array();
+        if ($item_row) {
+            $product_item_id = (int) $item_row['id'];
+        }
+    }
+
+    if ($product_item_id <= 0) {
+        return null;
+    }
+
+    // Check tblfiles for commodity_item_file
+    $CI->db->select('id, file_name, filetype');
+    $CI->db->from(db_prefix() . 'files');
+    $CI->db->where('rel_id', $product_item_id);
+    $CI->db->where('rel_type', 'commodity_item_file');
+    $CI->db->order_by('id', 'ASC');
+    $CI->db->limit(1);
+    $file = $CI->db->get()->row_array();
+
+    if ($file && !empty($file['file_name'])) {
+        $filename = $file['file_name'];
+        // Check warehouse upload path
+        $p_warehouse = FCPATH . 'modules/warehouse/uploads/item_img/' . $product_item_id . '/' . $filename;
+        if (file_exists($p_warehouse)) {
+            return base_url('modules/warehouse/uploads/item_img/' . $product_item_id . '/' . rawurlencode($filename));
+        }
+        // Check purchase upload path
+        $p_purchase = FCPATH . 'modules/purchase/uploads/item_img/' . $product_item_id . '/' . $filename;
+        if (file_exists($p_purchase)) {
+            return base_url('modules/purchase/uploads/item_img/' . $product_item_id . '/' . rawurlencode($filename));
+        }
+        // Check standard items upload path
+        $p_items = FCPATH . 'uploads/items/' . $product_item_id . '/' . $filename;
+        if (file_exists($p_items)) {
+            return base_url('uploads/items/' . $product_item_id . '/' . rawurlencode($filename));
+        }
+    }
+
+    return null;
+}
+
+/**
  * Allowed upload extensions (PDF, images, common office docs).
  *
  * @return array

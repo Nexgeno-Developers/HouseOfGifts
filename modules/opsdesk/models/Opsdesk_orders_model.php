@@ -6,6 +6,7 @@ class Opsdesk_orders_model extends App_Model
 {
     private $table_orders;
     private $table_items;
+    private $table_order_combos;
     private $table_log;
     private $table_inventory;
     private $table_combos;
@@ -20,11 +21,12 @@ class Opsdesk_orders_model extends App_Model
         $this->load->model('opsdesk/opsdesk_transport_mediums_model');
 
         $prefix = db_prefix();
-        $this->table_orders    = $prefix . 'opsdesk_orders';
-        $this->table_items     = $prefix . 'opsdesk_order_items';
-        $this->table_log       = $prefix . 'opsdesk_order_status_log';
-        $this->table_inventory = $prefix . 'opsdesk_inventory';
-        $this->table_combos    = $prefix . 'opsdesk_combos';
+        $this->table_orders       = $prefix . 'opsdesk_orders';
+        $this->table_items        = $prefix . 'opsdesk_order_items';
+        $this->table_order_combos = $prefix . 'opsdesk_order_combos';
+        $this->table_log          = $prefix . 'opsdesk_order_status_log';
+        $this->table_inventory    = $prefix . 'opsdesk_inventory';
+        $this->table_combos       = $prefix . 'opsdesk_combos';
     }
 
     /**
@@ -54,6 +56,19 @@ class Opsdesk_orders_model extends App_Model
 
             if ($order) {
                 $order['items']         = $this->get_order_items((int) $order['id']);
+                $order['combos']        = $this->get_order_combos((int) $order['id']);
+                if (empty($order['combos']) && !empty($order['combo_id'])) {
+                    $order['combos'] = [
+                        [
+                            'id'          => 0,
+                            'order_id'    => (int) $order['id'],
+                            'combo_id'    => (int) $order['combo_id'],
+                            'combo_name'  => $order['combo_name'],
+                            'quantity'    => (float) $order['quantity'],
+                            'combo_image' => $order['combo_image'] ?? null,
+                        ]
+                    ];
+                }
                 $order['status_log']    = $this->get_status_log((int) $order['id']);
                 $order['creator_name']  = get_staff_full_name((int) $order['created_by']);
             }
@@ -125,167 +140,322 @@ class Opsdesk_orders_model extends App_Model
     }
 
     /**
-     * Build order line items from combo definition and optional overrides.
+     * Build order line items from single combo definition (backward compatibility).
      *
      * @param int   $combo_id
-     * @param int   $quantity
+     * @param int|float $quantity
      * @param array $overrides
-     * @return array{success:bool,message?:string,items?:array}
+     * @return array{success:bool,message?:string,items?:array,combo?:object}
      */
     public function build_order_items($combo_id, $quantity, $overrides = [])
     {
-        $combo = $this->opsdesk_combos_model->get($combo_id);
-        if (!$combo || (int) $combo->status !== 1) {
-            return ['success' => false, 'message' => _l('opsdesk_combo_not_found')];
+        $combos_data = [
+            ['combo_id' => (int) $combo_id, 'quantity' => (float) $quantity]
+        ];
+        $built = $this->build_multi_order_items($combos_data, [], $overrides);
+        if (!$built['success']) {
+            return $built;
         }
 
-        if ($quantity < 1) {
-            return ['success' => false, 'message' => _l('opsdesk_invalid_request')];
-        }
+        $built['combo'] = $built['combos'][0]['combo'] ?? null;
 
-        $combo_items   = $this->opsdesk_combos_model->get_combo_items($combo_id);
+        return $built;
+    }
+
+    /**
+     * Build order line items from multiple combos and standalone products.
+     *
+     * @param array $combos_data   List of ['combo_id' => int, 'quantity' => float]
+     * @param array $products_data List of ['product_id' => int, 'quantity' => float, 'sku' => string, 'product_name' => string]
+     * @param array $overrides     Substitutions, removed items, added items, quantities
+     * @return array{success:bool,message?:string,items?:array,combos?:array,products?:array}
+     */
+    public function build_multi_order_items($combos_data = [], $products_data = [], $overrides = [])
+    {
         $substitutions = $overrides['substitutions'] ?? [];
         $removed       = array_map('strval', $overrides['removed'] ?? []);
         $added         = $overrides['added'] ?? [];
         $items         = [];
-        $seen_skus     = [];
+        $processed_combos   = [];
+        $processed_products = [];
 
-        foreach ($combo_items as $combo_item) {
-            $combo_item_id = (string) $combo_item['id'];
+        // 1. Process Combos
+        if (!empty($combos_data) && is_array($combos_data)) {
+            foreach ($combos_data as $c_idx => $c_input) {
+                $combo_id  = (int) ($c_input['combo_id'] ?? 0);
+                $combo_qty = (float) ($c_input['quantity'] ?? 0);
 
-            if (in_array($combo_item_id, $removed, true)) {
-                continue;
-            }
-
-            $qty_per_unit = (float) $combo_item['quantity_per_unit'];
-            if (isset($overrides['quantities'][$combo_item_id])) {
-                $required_total = (float) $overrides['quantities'][$combo_item_id];
-                if ($quantity > 0) {
-                    $qty_per_unit = $required_total / $quantity;
-                }
-            }
-
-            $product_id   = $combo_item['product_item_id'] ? (int) $combo_item['product_item_id'] : null;
-            $sku          = $combo_item['sku'];
-            $product_name = $combo_item['product_name'];
-            $is_sub       = 0;
-            $original_id  = null;
-
-            if (isset($substitutions[$combo_item_id]) && is_numeric($substitutions[$combo_item_id])) {
-                $sub_product = opsdesk_get_product_by_id((int) $substitutions[$combo_item_id]);
-                if (!$sub_product) {
-                    return ['success' => false, 'message' => _l('opsdesk_invalid_substitution')];
+                if ($combo_id <= 0 || $combo_qty <= 0) {
+                    continue;
                 }
 
-                $product_id   = (int) $sub_product['id'];
-                $sku          = $sub_product['sku'];
-                $product_name = $sub_product['label'];
-                $is_sub       = 1;
-                $original_id  = (int) $combo_item['id'];
+                $combo = $this->opsdesk_combos_model->get($combo_id);
+                if (!$combo || (int) $combo->status !== 1) {
+                    continue;
+                }
+
+                $processed_combos[] = [
+                    'combo_index' => $c_idx,
+                    'combo_id'    => $combo_id,
+                    'combo_name'  => $combo->name,
+                    'quantity'    => $combo_qty,
+                    'combo'       => $combo,
+                ];
+
+                $combo_items = $this->opsdesk_combos_model->get_combo_items($combo_id);
+
+                foreach ($combo_items as $combo_item) {
+                    $combo_item_id = (string) $combo_item['id'];
+                    $item_key_indexed = $c_idx . '_' . $combo_item_id;
+
+                    // Skip if removed by index-specific key or combo_item_id
+                    if (in_array($item_key_indexed, $removed, true) || in_array($combo_item_id, $removed, true)) {
+                        continue;
+                    }
+
+                    $qty_per_unit = (float) $combo_item['quantity_per_unit'];
+                    $required_qty = $qty_per_unit * $combo_qty;
+
+                    if (isset($overrides['quantities'][$item_key_indexed])) {
+                        $required_qty = (float) $overrides['quantities'][$item_key_indexed];
+                        if ($combo_qty > 0) {
+                            $qty_per_unit = $required_qty / $combo_qty;
+                        }
+                    } elseif (isset($overrides['quantities'][$combo_item_id])) {
+                        $required_qty = (float) $overrides['quantities'][$combo_item_id];
+                        if ($combo_qty > 0) {
+                            $qty_per_unit = $required_qty / $combo_qty;
+                        }
+                    }
+
+                    $product_id   = $combo_item['product_item_id'] ? (int) $combo_item['product_item_id'] : null;
+                    $sku          = $combo_item['sku'];
+                    $product_name = $combo_item['product_name'];
+                    $is_sub       = 0;
+                    $original_id  = null;
+
+                    // Substitution check
+                    $sub_id = $substitutions[$item_key_indexed] ?? ($substitutions[$combo_item_id] ?? null);
+                    if ($sub_id && is_numeric($sub_id)) {
+                        $sub_product = opsdesk_get_product_by_id((int) $sub_id);
+                        if ($sub_product) {
+                            $product_id   = (int) $sub_product['id'];
+                            $sku          = $sub_product['sku'];
+                            $product_name = $sub_product['label'];
+                            $is_sub       = 1;
+                            $original_id  = (int) $combo_item['id'];
+                        }
+                    }
+
+                    $items[] = [
+                        'key'               => $item_key_indexed,
+                        'combo_id'          => $combo_id,
+                        'combo_index'       => $c_idx,
+                        'combo_name'        => $combo->name,
+                        'combo_item_id'     => (int) $combo_item['id'],
+                        'product_item_id'   => $product_id,
+                        'sku'               => $sku,
+                        'product_name'      => $product_name,
+                        'quantity_per_unit' => $qty_per_unit,
+                        'quantity_reserved' => $required_qty,
+                        'quantity_ordered'  => $required_qty,
+                        'is_substitution'   => $is_sub,
+                        'original_item_id'  => $original_id,
+                        'source_type'       => 'combo',
+                        'source_name'       => $combo->name,
+                    ];
+                }
             }
+        }
 
-             $items[] = [
-                 'combo_item_id'     => (int) $combo_item['id'],
-                 'product_item_id'   => $product_id,
-                 'sku'               => $sku,
-                 'product_name'      => $product_name,
-                 'quantity_per_unit' => $qty_per_unit,
-                 'is_substitution'   => $is_sub,
-                 'original_item_id'  => $original_id,
-             ];
+        // 2. Process Standalone Inventory Products
+        if (!empty($products_data) && is_array($products_data)) {
+            foreach ($products_data as $p_idx => $p_input) {
+                $p_qty = (float) ($p_input['quantity'] ?? 0);
+                if ($p_qty <= 0) {
+                    continue;
+                }
 
-             $seen_skus[$sku] = true;
-         }
+                $product_id = !empty($p_input['product_id'])
+                    ? (int) $p_input['product_id']
+                    : (!empty($p_input['product_item_id']) ? (int) $p_input['product_item_id'] : null);
+                $sku    = trim($p_input['sku'] ?? '');
+                $p_name = trim($p_input['product_name'] ?? '');
 
-        foreach ($added as $added_item) {
-            if (empty($added_item['sku'])) {
-                continue;
+                if (empty($sku) && !empty($p_input['inventory_id'])) {
+                    $inv_row = $this->opsdesk_inventory_model->get((int) $p_input['inventory_id']);
+                    if ($inv_row) {
+                        $sku        = is_object($inv_row) ? $inv_row->sku : ($inv_row['sku'] ?? '');
+                        $product_id = is_object($inv_row) ? (int) ($inv_row->product_item_id ?? 0) : (int) ($inv_row['product_item_id'] ?? 0);
+                    }
+                }
+
+                if ($product_id > 0 && (empty($sku) || empty($p_name))) {
+                    $product = opsdesk_get_product_by_id($product_id);
+                    if ($product) {
+                        $sku    = $product['sku'] ?: $sku;
+                        $p_name = $product['label'] ?: $p_name;
+                    }
+                }
+
+                if (empty($sku)) {
+                    continue;
+                }
+
+                $processed_products[] = [
+                    'product_id'   => $product_id,
+                    'sku'          => $sku,
+                    'product_name' => $p_name ?: $sku,
+                    'quantity'     => $p_qty,
+                ];
+
+                $items[] = [
+                    'key'               => 'standalone_' . $p_idx . '_' . $sku,
+                    'combo_id'          => null,
+                    'combo_index'       => null,
+                    'combo_name'        => null,
+                    'combo_item_id'     => null,
+                    'product_item_id'   => $product_id,
+                    'sku'               => $sku,
+                    'product_name'      => $p_name ?: $sku,
+                    'quantity_per_unit' => $p_qty,
+                    'quantity_reserved' => $p_qty,
+                    'quantity_ordered'  => $p_qty,
+                    'is_substitution'   => 0,
+                    'original_item_id'  => null,
+                    'source_type'       => 'standalone',
+                    'source_name'       => _l('opsdesk_source_standalone'),
+                ];
             }
+        }
 
-            $added_sku = trim($added_item['sku']);
+        // 3. Process Overrides: Added items (manual additions)
+        if (!empty($added) && is_array($added)) {
+            foreach ($added as $a_idx => $added_item) {
+                if (empty($added_item['sku'])) {
+                    continue;
+                }
+                $added_sku = trim($added_item['sku']);
+                $req_qty   = isset($added_item['required_quantity'])
+                    ? (float) $added_item['required_quantity']
+                    : ((float) ($added_item['quantity_per_unit'] ?? 1.0));
+                if ($req_qty <= 0) {
+                    $req_qty = 1.0;
+                }
 
-            // Skip if this SKU was already added or matches an existing combo item.
-            if (isset($seen_skus[$added_sku])) {
-                continue;
+                $items[] = [
+                    'key'               => 'added_' . $a_idx . '_' . $added_sku,
+                    'combo_id'          => null,
+                    'combo_index'       => null,
+                    'combo_name'        => null,
+                    'combo_item_id'     => null,
+                    'product_item_id'   => !empty($added_item['product_item_id']) ? (int) $added_item['product_item_id'] : null,
+                    'sku'               => $added_sku,
+                    'product_name'      => trim($added_item['product_name'] ?? $added_sku),
+                    'quantity_per_unit' => $req_qty,
+                    'quantity_reserved' => $req_qty,
+                    'is_substitution'   => !empty($added_item['is_substitution']) ? 1 : 0,
+                    'original_item_id'  => !empty($added_item['original_item_id']) ? (int) $added_item['original_item_id'] : null,
+                    'source_type'       => 'standalone',
+                    'source_name'       => _l('opsdesk_source_standalone'),
+                ];
             }
-            $seen_skus[$added_sku] = true;
-
-            $qty_per_unit = isset($added_item['quantity_per_unit'])
-                ? (float) $added_item['quantity_per_unit']
-                : 1.0;
-
-            if (isset($added_item['required_quantity']) && $quantity > 0) {
-                $qty_per_unit = (float) $added_item['required_quantity'] / $quantity;
-            }
-
-            $items[] = [
-                'product_item_id'   => !empty($added_item['product_item_id']) ? (int) $added_item['product_item_id'] : null,
-                'sku'               => $added_sku,
-                'product_name'      => trim($added_item['product_name'] ?? $added_item['sku']),
-                'quantity_per_unit' => $qty_per_unit,
-                'is_substitution'   => !empty($added_item['is_substitution']) ? 1 : 0,
-                'original_item_id'  => !empty($added_item['original_item_id']) ? (int) $added_item['original_item_id'] : null,
-            ];
         }
 
         if (count($items) === 0) {
             return ['success' => false, 'message' => _l('opsdesk_no_order_items')];
         }
 
-        return ['success' => true, 'items' => $items, 'combo' => $combo];
+        return [
+            'success'  => true,
+            'items'    => $items,
+            'combos'   => $processed_combos,
+            'products' => $processed_products,
+        ];
     }
 
     /**
-     * Check stock for proposed order items.
+     * Check stock for proposed order items, aggregating requirements per SKU.
      *
      * @param array $order_items
-     * @param int   $quantity
+     * @param float $quantity
      * @return array
      */
-    public function check_items_stock($order_items, $quantity)
+    public function check_items_stock($order_items, $quantity = 1.0)
     {
+        // 1. Aggregate total requirement across all order items for each SKU
+        $sku_totals = [];
+        foreach ($order_items as $item) {
+            $sku = $item['sku'];
+            $req = isset($item['quantity_reserved'])
+                ? (float) $item['quantity_reserved']
+                : ((float) $item['quantity_per_unit'] * (float) $quantity);
+
+            if (!isset($sku_totals[$sku])) {
+                $sku_totals[$sku] = 0.0;
+            }
+            $sku_totals[$sku] += $req;
+        }
+
+        // 2. Query available stock for each distinct SKU
+        $sku_available = [];
+        foreach (array_keys($sku_totals) as $sku) {
+            $sku_available[$sku] = (float) $this->opsdesk_inventory_model->get_available_for_combo_item($sku, null);
+        }
+
+        // 3. Build component stock evaluation
         $components     = [];
         $is_fulfillable = true;
 
-        foreach ($order_items as $item) {
-            $required  = (float) $item['quantity_per_unit'] * (float) $quantity;
-            $available = $this->opsdesk_inventory_model->get_available_for_combo_item(
-                $item['sku'],
-                $item['product_item_id'] ?? null
-            );
-            $sufficient = $available >= $required;
+        foreach ($order_items as $idx => $item) {
+            $sku = $item['sku'];
+            $req = isset($item['quantity_reserved'])
+                ? (float) $item['quantity_reserved']
+                : ((float) $item['quantity_per_unit'] * (float) $quantity);
+            $available    = $sku_available[$sku] ?? 0.0;
+            $total_needed = $sku_totals[$sku] ?? $req;
 
+            // Sufficient only if available stock covers the entire order's demand for this SKU
+            $sufficient = $available >= $total_needed;
             if (!$sufficient) {
                 $is_fulfillable = false;
             }
 
             $components[] = [
+                'key'                => $item['key'] ?? ($item['combo_item_id'] ? ('item_' . $item['combo_item_id']) : ('sku_' . $sku)),
                 'combo_item_id'      => $item['combo_item_id'] ?? null,
+                'combo_id'           => $item['combo_id'] ?? null,
+                'combo_name'         => $item['combo_name'] ?? null,
                 'sku'                => $item['sku'],
                 'product_name'       => $item['product_name'],
                 'product_item_id'    => $item['product_item_id'] ?? null,
                 'quantity_per_unit'  => (float) $item['quantity_per_unit'],
-                'required_quantity'  => $required,
+                'required_quantity'  => $req,
+                'total_sku_needed'   => $total_needed,
                 'available_stock'    => $available,
                 'is_sufficient'      => $sufficient,
                 'is_substitution'    => !empty($item['is_substitution']),
+                'source_type'        => $item['source_type'] ?? 'combo',
+                'source_name'        => $item['source_name'] ?? ($item['combo_name'] ?? _l('opsdesk_combo')),
             ];
         }
 
         return [
             'is_fulfillable' => $is_fulfillable && count($components) > 0,
             'components'     => $components,
+            'sku_totals'     => $sku_totals,
         ];
     }
 
     /**
-     * Create order and reserve stock atomically.
+     * Create order and reserve stock atomically across multiple combos and standalone products.
      *
      * @param array $order_data
      * @param array $order_items
+     * @param array $combos_list
      * @return array
      */
-    public function create_order_with_reservation($order_data, $order_items)
+    public function create_order_with_reservation($order_data, $order_items, $combos_list = [])
     {
         $quantity = (float) ($order_data['quantity'] ?? 0);
         if ($quantity < 1 || empty($order_items)) {
@@ -295,39 +465,50 @@ class Opsdesk_orders_model extends App_Model
         $this->db->trans_begin();
 
         try {
-            // Ensure an inventory row exists for each SKU inside the
-            // transaction so a later rollback also undoes any newly created row.
+            // Ensure an inventory row exists for each SKU inside the transaction
             foreach ($order_items as $item) {
                 $this->ensure_inventory_row($item['sku'], $item['product_item_id'] ?? null);
             }
 
-            foreach ($order_items as $item) {
+            // Lock inventory rows FOR UPDATE to prevent race conditions
+            $distinct_skus = array_unique(array_column($order_items, 'sku'));
+            foreach ($distinct_skus as $sku) {
                 $this->db->query(
                     'SELECT id, quantity_available, quantity_reserved
                      FROM ' . $this->table_inventory . '
                      WHERE sku = ? FOR UPDATE',
-                    [$item['sku']]
+                    [$sku]
                 );
             }
 
+            // Aggregate requirement per SKU and verify availability
+            $sku_totals = [];
             foreach ($order_items as $item) {
-                $inv = $this->opsdesk_inventory_model->get_by_sku($item['sku']);
+                $sku = $item['sku'];
+                $req = isset($item['quantity_reserved'])
+                    ? (float) $item['quantity_reserved']
+                    : ((float) $item['quantity_per_unit'] * $quantity);
+
+                if (!isset($sku_totals[$sku])) {
+                    $sku_totals[$sku] = 0.0;
+                }
+                $sku_totals[$sku] += $req;
+            }
+
+            foreach ($sku_totals as $sku => $required_qty) {
+                $inv = $this->opsdesk_inventory_model->get_by_sku($sku);
                 if (!$inv) {
                     $this->db->trans_rollback();
 
-                    return ['success' => false, 'message' => _l('opsdesk_stock_no_longer_available', $item['sku'])];
+                    return ['success' => false, 'message' => _l('opsdesk_stock_no_longer_available', $sku)];
                 }
 
-                $net_available = $this->opsdesk_inventory_model->get_available_for_combo_item(
-                    $item['sku'],
-                    $item['product_item_id'] ?? null
-                );
-                $required = (float) $item['quantity_per_unit'] * $quantity;
+                $net_available = $this->opsdesk_inventory_model->get_available_for_combo_item($sku);
 
-                if ($net_available < $required && !opsdesk_bypass_stock_check()) {
+                if ($net_available < $required_qty && !opsdesk_bypass_stock_check()) {
                     $this->db->trans_rollback();
 
-                    return ['success' => false, 'message' => _l('opsdesk_stock_no_longer_available', $item['sku'])];
+                    return ['success' => false, 'message' => _l('opsdesk_stock_no_longer_available', $sku)];
                 }
             }
 
@@ -344,11 +525,35 @@ class Opsdesk_orders_model extends App_Model
                 return ['success' => false, 'message' => _l('opsdesk_order_create_failed')];
             }
 
+            // Insert into tblopsdesk_order_combos
+            $combo_db_ids = [];
+            if (!empty($combos_list) && is_array($combos_list)) {
+                foreach ($combos_list as $c_idx => $c_item) {
+                    $this->db->insert($this->table_order_combos, [
+                        'order_id'   => $order_id,
+                        'combo_id'   => (int) $c_item['combo_id'],
+                        'combo_name' => $c_item['combo_name'] ?? '',
+                        'quantity'   => (float) $c_item['quantity'],
+                        'created_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $combo_db_ids[$c_idx] = (int) $this->db->insert_id();
+                }
+            }
+
+            // Insert line items and reserve stock
             foreach ($order_items as $item) {
-                $reserved = (float) $item['quantity_per_unit'] * $quantity;
+                $reserved = isset($item['quantity_reserved'])
+                    ? (float) $item['quantity_reserved']
+                    : ((float) $item['quantity_per_unit'] * $quantity);
+
+                $order_combo_id = null;
+                if (isset($item['combo_index']) && isset($combo_db_ids[$item['combo_index']])) {
+                    $order_combo_id = $combo_db_ids[$item['combo_index']];
+                }
 
                 $this->db->insert($this->table_items, [
                     'order_id'          => $order_id,
+                    'order_combo_id'    => $order_combo_id,
                     'product_item_id'   => $item['product_item_id'] ?? null,
                     'sku'               => $item['sku'],
                     'product_name'      => $item['product_name'],
@@ -356,6 +561,8 @@ class Opsdesk_orders_model extends App_Model
                     'quantity_reserved' => $reserved,
                     'is_substitution'   => !empty($item['is_substitution']) ? 1 : 0,
                     'original_item_id'  => $item['original_item_id'] ?? null,
+                    'source_type'       => $item['source_type'] ?? 'combo',
+                    'source_name'       => $item['source_name'] ?? null,
                     'created_at'        => date('Y-m-d H:i:s'),
                 ]);
 
@@ -375,20 +582,191 @@ class Opsdesk_orders_model extends App_Model
                 return ['success' => false, 'message' => _l('opsdesk_order_create_failed')];
             }
 
-              if ($this->db->trans_commit() === false) {
-                  $this->db->trans_rollback();
+            if ($this->db->trans_commit() === false) {
+                $this->db->trans_rollback();
 
-                  return ['success' => false, 'message' => _l('opsdesk_order_create_failed')];
-              }
+                return ['success' => false, 'message' => _l('opsdesk_order_create_failed')];
+            }
 
-             log_activity('OpsDesk Order Created [ID:' . $order_id . ']');
+            log_activity('OpsDesk Order Created [ID:' . $order_id . ']');
 
-             return ['success' => true, 'order_id' => $order_id];
+            return ['success' => true, 'order_id' => $order_id];
         } catch (Exception $e) {
             $this->db->trans_rollback();
 
             return ['success' => false, 'message' => _l('opsdesk_transaction_failed') . ' ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Get combos attached to an order.
+     *
+     * @param int $order_id
+     * @return array
+     */
+    public function get_order_combos($order_id)
+    {
+        $this->db->select(
+            $this->table_order_combos . '.*, ' .
+            $this->table_combos . '.image as combo_image'
+        );
+        $this->db->from($this->table_order_combos);
+        $this->db->join(
+            $this->table_combos,
+            $this->table_combos . '.id = ' . $this->table_order_combos . '.combo_id',
+            'left'
+        );
+        $this->db->where($this->table_order_combos . '.order_id', (int) $order_id);
+        $this->db->order_by($this->table_order_combos . '.id', 'ASC');
+
+        return $this->db->get()->result_array();
+    }
+
+    /**
+     * Attach photo gallery (combos + standalone products + components) to a list of orders.
+     *
+     * @param array $orders (by reference)
+     * @return void
+     */
+    public function attach_order_galleries(&$orders)
+    {
+        if (empty($orders) || !is_array($orders)) {
+            return;
+        }
+
+        $order_ids = array_filter(array_column($orders, 'id'));
+        if (empty($order_ids)) {
+            return;
+        }
+
+        // 1. Fetch combos for all orders
+        $combos_by_order = [];
+        $this->db->select(
+            $this->table_order_combos . '.order_id, ' .
+            $this->table_order_combos . '.combo_id, ' .
+            $this->table_order_combos . '.combo_name, ' .
+            $this->table_combos . '.image as combo_image'
+        );
+        $this->db->from($this->table_order_combos);
+        $this->db->join(
+            $this->table_combos,
+            $this->table_combos . '.id = ' . $this->table_order_combos . '.combo_id',
+            'left'
+        );
+        $this->db->where_in($this->table_order_combos . '.order_id', $order_ids);
+        $this->db->order_by($this->table_order_combos . '.id', 'ASC');
+        $combo_rows = $this->db->get()->result_array();
+
+        foreach ($combo_rows as $c) {
+            $combos_by_order[(int) $c['order_id']][] = $c;
+        }
+
+        // 2. Fetch line items for all orders
+        $items_by_order = [];
+        $product_item_ids = [];
+        $this->db->select('id, order_id, product_item_id, sku, product_name, source_type, source_name');
+        $this->db->from($this->table_items);
+        $this->db->where_in('order_id', $order_ids);
+        $this->db->order_by('id', 'ASC');
+        $item_rows = $this->db->get()->result_array();
+
+        foreach ($item_rows as $it) {
+            $items_by_order[(int) $it['order_id']][] = $it;
+            if (!empty($it['product_item_id'])) {
+                $product_item_ids[] = (int) $it['product_item_id'];
+            }
+        }
+        $product_item_ids = array_unique(array_filter($product_item_ids));
+
+        // 3. Batch load product files from tblfiles
+        $product_files = [];
+        if (!empty($product_item_ids)) {
+            $this->db->select('rel_id, file_name, filetype');
+            $this->db->from(db_prefix() . 'files');
+            $this->db->where('rel_type', 'commodity_item_file');
+            $this->db->where_in('rel_id', $product_item_ids);
+            $this->db->order_by('id', 'ASC');
+            $file_rows = $this->db->get()->result_array();
+            foreach ($file_rows as $f) {
+                if (!isset($product_files[(int) $f['rel_id']])) {
+                    $product_files[(int) $f['rel_id']] = $f['file_name'];
+                }
+            }
+        }
+
+        $placeholder = module_dir_url(OPSDESK_MODULE_NAME, 'assets/images/combo-placeholder.svg');
+
+        // 4. Assemble gallery per order
+        foreach ($orders as &$order) {
+            $oid = (int) ($order['id'] ?? 0);
+            $gallery = [];
+            $seen_urls = [];
+
+            // A. Combos
+            $order_combos = $combos_by_order[$oid] ?? [];
+            if (empty($order_combos) && !empty($order['combo_id']) && !empty($order['combo_image'])) {
+                $order_combos[] = [
+                    'combo_id'    => (int) $order['combo_id'],
+                    'combo_name'  => $order['combo_name'] ?? 'Combo',
+                    'combo_image' => $order['combo_image'],
+                ];
+            }
+
+            foreach ($order_combos as $c) {
+                if (!empty($c['combo_image'])) {
+                    $url = opsdesk_combo_image_url($c['combo_image']);
+                    if ($url && $url !== $placeholder && !isset($seen_urls[$url])) {
+                        $seen_urls[$url] = true;
+                        $gallery[] = [
+                            'url'   => $url,
+                            'title' => 'Combo: ' . ($c['combo_name'] ?: 'Package'),
+                            'type'  => 'combo',
+                            'badge' => 'Combo',
+                            'sku'   => '',
+                        ];
+                    }
+                }
+            }
+
+            // B. Products & Components
+            $order_items = $items_by_order[$oid] ?? [];
+            foreach ($order_items as $it) {
+                $pid = (int) ($it['product_item_id'] ?? 0);
+                $sku = $it['sku'] ?? '';
+                $url = null;
+
+                // Check preloaded files
+                if ($pid > 0 && isset($product_files[$pid])) {
+                    $fn = $product_files[$pid];
+                    $p_warehouse = FCPATH . 'modules/warehouse/uploads/item_img/' . $pid . '/' . $fn;
+                    if (file_exists($p_warehouse)) {
+                        $url = base_url('modules/warehouse/uploads/item_img/' . $pid . '/' . rawurlencode($fn));
+                    }
+                }
+
+                // Fallback to helper function
+                if (!$url) {
+                    $url = opsdesk_get_product_image_url($pid, $sku);
+                }
+
+                if ($url && !isset($seen_urls[$url])) {
+                    $seen_urls[$url] = true;
+                    $is_standalone = (!empty($it['source_type']) && $it['source_type'] === 'standalone');
+                    $gallery[] = [
+                        'url'   => $url,
+                        'title' => $it['product_name'] ?: $sku,
+                        'type'  => $is_standalone ? 'standalone' : 'component',
+                        'badge' => $is_standalone ? 'Product' : 'Component',
+                        'sku'   => $sku,
+                    ];
+                }
+            }
+
+            $order['gallery_images'] = $gallery;
+            $order['gallery_count']  = count($gallery);
+            $order['primary_image']  = !empty($gallery) ? $gallery[0]['url'] : '';
+        }
+        unset($order);
     }
 
     /**

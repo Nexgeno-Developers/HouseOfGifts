@@ -115,19 +115,37 @@
                                         </td>
                                         <td>
                                             <?php
-                                            $combo_image_url = opsdesk_combo_image_url($order['combo_image'] ?? '');
-                                            $combo_placeholder = module_dir_url(OPSDESK_MODULE_NAME, 'assets/images/combo-placeholder.svg');
-                                            $combo_label     = $order['combo_name'] ?: _l('opsdesk_combo_image');
+                                            $gallery = $order['gallery_images'] ?? [];
+                                            $gallery_count = (int) ($order['gallery_count'] ?? 0);
+                                            $placeholder = module_dir_url(OPSDESK_MODULE_NAME, 'assets/images/combo-placeholder.svg');
+                                            $display_thumb = !empty($order['primary_image']) ? $order['primary_image'] : '';
+                                            if (empty($display_thumb) && !empty($order['combo_image'])) {
+                                                $display_thumb = opsdesk_combo_image_url($order['combo_image']);
+                                            }
+                                            if (empty($display_thumb)) {
+                                                $display_thumb = $placeholder;
+                                            }
+                                            $combo_label = $order['combo_name'] ?: _l('opsdesk_combo_image');
+                                            $gallery_json = htmlspecialchars(json_encode($gallery), ENT_QUOTES, 'UTF-8');
                                             ?>
-                                            <button type="button"
-                                                class="opsdesk-combo-thumb"
-                                                data-preview-src="<?php echo e($combo_image_url); ?>"
-                                                data-preview-title="<?php echo e($combo_label); ?>"
-                                                title="<?php echo e(_l('opsdesk_image_preview')); ?>">
-                                                <img src="<?php echo e($combo_image_url); ?>"
-                                                    alt="<?php echo e($combo_label); ?>"
-                                                    onerror="this.onerror=null;this.src='<?php echo e($combo_placeholder); ?>';this.closest('.opsdesk-combo-thumb').setAttribute('data-preview-src','<?php echo e($combo_placeholder); ?>');">
-                                            </button>
+                                            <div class="opsdesk-thumb-wrapper">
+                                                <button type="button"
+                                                    class="opsdesk-combo-thumb opsdesk-order-gallery-trigger"
+                                                    data-order-id="<?php echo (int) $order['id']; ?>"
+                                                    data-gallery="<?php echo $gallery_json; ?>"
+                                                    data-preview-src="<?php echo e($display_thumb); ?>"
+                                                    data-preview-title="<?php echo e($combo_label); ?>"
+                                                    title="<?php echo $gallery_count > 0 ? e($gallery_count . ' ' . ($gallery_count === 1 ? 'image' : 'images')) : e(_l('opsdesk_image_preview')); ?>">
+                                                    <img src="<?php echo e($display_thumb); ?>"
+                                                        alt="<?php echo e($combo_label); ?>"
+                                                        onerror="this.onerror=null;this.src='<?php echo e($placeholder); ?>';">
+                                                    <?php if ($gallery_count > 1) { ?>
+                                                        <span class="opsdesk-gallery-badge" title="<?php echo $gallery_count; ?> images">
+                                                            <i class="fa fa-clone"></i> <?php echo $gallery_count; ?>
+                                                        </span>
+                                                    <?php } ?>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td data-order="<?php echo e($order['delivery_date'] ?? ''); ?>">
                                             <?php if (!empty($order['delivery_date'])) { ?>
@@ -316,20 +334,44 @@
 </div>
 <?php } ?>
 
-<div class="modal fade" id="opsdesk_image_preview_modal" tabindex="-1" role="dialog" aria-labelledby="opsdesk_image_preview_title">
+<div class="modal fade" id="opsdesk_image_preview_modal" tabindex="-1" role="dialog" aria-labelledby="opsdesk_gallery_order_label">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
+                <div class="opsdesk-gallery-header-info">
+                    <h4 class="modal-title font-bold" id="opsdesk_gallery_order_label"><?php echo e(_l('opsdesk_image_preview')); ?></h4>
+                    <span id="opsdesk_gallery_badge" class="label label-default" style="display:none;"></span>
+                    <span id="opsdesk_gallery_sku" class="label label-tag tag-id-1" style="display:none;"></span>
+                    <span id="opsdesk_gallery_main_title" class="text-muted" style="font-size: 13px; font-weight: 500;"></span>
+                </div>
                 <button type="button" class="close" data-dismiss="modal" aria-label="<?php echo e(_l('close')); ?>">
                     <span aria-hidden="true">&times;</span>
                 </button>
-                <h4 class="modal-title" id="opsdesk_image_preview_title"><?php echo e(_l('opsdesk_image_preview')); ?></h4>
             </div>
-            <div class="modal-body text-center">
-                <img id="opsdesk_image_preview_img" src="" alt="" class="opsdesk-image-preview-full">
+            <div class="modal-body opsdesk-gallery-modal-body">
+                <div class="opsdesk-gallery-stage">
+                    <button type="button" class="opsdesk-gallery-nav opsdesk-gallery-prev" id="opsdesk_gallery_prev" title="Previous (Left Arrow)" aria-label="Previous">
+                        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <img id="opsdesk_image_preview_img" src="" alt="" class="opsdesk-image-preview-full">
+                    <button type="button" class="opsdesk-gallery-nav opsdesk-gallery-next" id="opsdesk_gallery_next" title="Next (Right Arrow)" aria-label="Next">
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal"><?php echo e(_l('close')); ?></button>
+            <div class="opsdesk-gallery-strip-container" id="opsdesk_gallery_strip_wrap" style="display:none;">
+                <div class="opsdesk-gallery-strip" id="opsdesk_gallery_strip"></div>
+            </div>
+            <div class="modal-footer opsdesk-gallery-footer">
+                <div>
+                    <span id="opsdesk_gallery_counter" class="text-muted" style="font-weight: 600;"></span>
+                </div>
+                <div>
+                    <a href="#" id="opsdesk_gallery_external_link" target="_blank" rel="noopener noreferrer" class="btn btn-default btn-sm" style="margin-right: 6px;">
+                        <i class="fa fa-external-link"></i> Open Original
+                    </a>
+                    <button type="button" class="btn btn-default btn-sm" data-dismiss="modal"><?php echo e(_l('close')); ?></button>
+                </div>
             </div>
         </div>
     </div>
@@ -519,20 +561,193 @@
             initTooltips($(".opsdesk-orders-table"));
         });
 
-        $(document).on("click", ".opsdesk-combo-thumb", function (e) {
-            e.preventDefault();
-            var src = $(this).attr("data-preview-src") || "";
-            var title = $(this).attr("data-preview-title") || "";
-            if (!src) {
+        var activeGallery = [];
+        var activeIndex = 0;
+        var placeholderImg = "<?php echo module_dir_url(OPSDESK_MODULE_NAME, 'assets/images/combo-placeholder.svg'); ?>";
+
+        function renderGalleryItem(index) {
+            if (!activeGallery || activeGallery.length === 0) {
+                $("#opsdesk_image_preview_img").attr("src", placeholderImg).attr("alt", "No image");
+                $("#opsdesk_gallery_main_title").text("No Image Available");
+                $("#opsdesk_gallery_badge").hide();
+                $("#opsdesk_gallery_sku").hide();
+                $("#opsdesk_gallery_counter").text("0 / 0");
+                $("#opsdesk_gallery_external_link").hide();
+                $("#opsdesk_gallery_prev, #opsdesk_gallery_next").hide();
+                $("#opsdesk_gallery_strip_wrap").hide();
                 return;
             }
-            $("#opsdesk_image_preview_title").text(title);
-            $("#opsdesk_image_preview_img").attr("src", src).attr("alt", title);
-            $("#opsdesk_image_preview_modal").modal("show");
+
+            if (index < 0) { index = 0; }
+            if (index >= activeGallery.length) { index = activeGallery.length - 1; }
+            activeIndex = index;
+
+            var item = activeGallery[activeIndex];
+            var itemUrl = item.url || placeholderImg;
+
+            // Main image
+            $("#opsdesk_image_preview_img").attr("src", itemUrl).attr("alt", item.title || "");
+            $("#opsdesk_gallery_main_title").text(item.title ? ("— " + item.title) : "");
+
+            // Badge
+            if (item.badge) {
+                var badgeClass = "label-default";
+                if (item.type === "combo") { badgeClass = "label-info"; }
+                else if (item.type === "standalone") { badgeClass = "label-success"; }
+                else if (item.type === "component") { badgeClass = "label-primary"; }
+
+                $("#opsdesk_gallery_badge")
+                    .text(item.badge)
+                    .attr("class", "label " + badgeClass)
+                    .show();
+            } else {
+                $("#opsdesk_gallery_badge").hide();
+            }
+
+            // SKU
+            if (item.sku) {
+                $("#opsdesk_gallery_sku").text("SKU: " + item.sku).show();
+            } else {
+                $("#opsdesk_gallery_sku").hide();
+            }
+
+            // Counter
+            $("#opsdesk_gallery_counter").text("Image " + (activeIndex + 1) + " of " + activeGallery.length);
+
+            // External link
+            if (itemUrl && itemUrl !== placeholderImg) {
+                $("#opsdesk_gallery_external_link").attr("href", itemUrl).show();
+            } else {
+                $("#opsdesk_gallery_external_link").hide();
+            }
+
+            // Prev / Next button states
+            if (activeGallery.length > 1) {
+                $("#opsdesk_gallery_prev, #opsdesk_gallery_next").show();
+                $("#opsdesk_gallery_prev").prop("disabled", activeIndex === 0);
+                $("#opsdesk_gallery_next").prop("disabled", activeIndex === activeGallery.length - 1);
+            } else {
+                $("#opsdesk_gallery_prev, #opsdesk_gallery_next").hide();
+            }
+
+            // Update active thumbnail in strip and auto scroll into view
+            $("#opsdesk_gallery_strip .opsdesk-strip-thumb").removeClass("active");
+            var $activeThumb = $("#opsdesk_gallery_strip .opsdesk-strip-thumb[data-index='" + activeIndex + "']");
+            $activeThumb.addClass("active");
+            if ($activeThumb.length) {
+                var stripEl = document.getElementById("opsdesk_gallery_strip_wrap");
+                if (stripEl) {
+                    var thumbLeft = $activeThumb.position().left;
+                    var thumbWidth = $activeThumb.outerWidth();
+                    var stripWidth = $(stripEl).width();
+                    if (thumbLeft < 0 || (thumbLeft + thumbWidth) > stripWidth) {
+                        stripEl.scrollLeft += (thumbLeft - (stripWidth / 2) + (thumbWidth / 2));
+                    }
+                }
+            }
+        }
+
+        function buildThumbnailStrip() {
+            var $strip = $("#opsdesk_gallery_strip");
+            $strip.empty();
+
+            if (!activeGallery || activeGallery.length <= 1) {
+                $("#opsdesk_gallery_strip_wrap").hide();
+                return;
+            }
+
+            $("#opsdesk_gallery_strip_wrap").show();
+
+            $.each(activeGallery, function (idx, it) {
+                var itUrl = it.url || placeholderImg;
+                var $btn = $('<button type="button" class="opsdesk-strip-thumb">')
+                    .attr("data-index", idx)
+                    .attr("title", it.title || ("Image " + (idx + 1)))
+                    .html('<img src="' + itUrl + '" alt="">');
+
+                if (idx === activeIndex) {
+                    $btn.addClass("active");
+                }
+                $strip.append($btn);
+            });
+        }
+
+        $(document).on("click", ".opsdesk-order-gallery-trigger, .opsdesk-combo-thumb", function (e) {
+            e.preventDefault();
+            var orderId = $(this).attr("data-order-id") || "";
+            var rawGallery = $(this).attr("data-gallery") || "[]";
+            var singleSrc = $(this).attr("data-preview-src") || "";
+            var singleTitle = $(this).attr("data-preview-title") || "";
+
+            try {
+                activeGallery = JSON.parse(rawGallery);
+            } catch (err) {
+                activeGallery = [];
+            }
+
+            if ((!activeGallery || activeGallery.length === 0) && singleSrc) {
+                activeGallery = [{
+                    url: singleSrc,
+                    title: singleTitle || "Preview",
+                    badge: "Preview",
+                    type: "combo",
+                    sku: ""
+                }];
+            }
+
+            $("#opsdesk_gallery_order_label").text(orderId ? ("Order #" + orderId + " Images") : <?php echo json_encode(_l('opsdesk_image_preview')); ?>);
+
+            buildThumbnailStrip();
+            renderGalleryItem(0);
+
+            var $modal = $("#opsdesk_image_preview_modal");
+            if ($modal.parent()[0] !== document.body) {
+                $modal.appendTo("body");
+            }
+            $modal.modal("show");
+        });
+
+        $(document).on("click", "#opsdesk_gallery_prev", function (e) {
+            e.preventDefault();
+            if (activeIndex > 0) {
+                renderGalleryItem(activeIndex - 1);
+            }
+        });
+
+        $(document).on("click", "#opsdesk_gallery_next", function (e) {
+            e.preventDefault();
+            if (activeIndex < activeGallery.length - 1) {
+                renderGalleryItem(activeIndex + 1);
+            }
+        });
+
+        $(document).on("click", ".opsdesk-strip-thumb", function (e) {
+            e.preventDefault();
+            var idx = parseInt($(this).attr("data-index"), 10);
+            if (!isNaN(idx)) {
+                renderGalleryItem(idx);
+            }
+        });
+
+        $(document).on("keydown", function (e) {
+            if ($("#opsdesk_image_preview_modal").hasClass("in")) {
+                if (e.which === 37) { // Left arrow
+                    if (activeIndex > 0) {
+                        renderGalleryItem(activeIndex - 1);
+                    }
+                } else if (e.which === 39) { // Right arrow
+                    if (activeIndex < activeGallery.length - 1) {
+                        renderGalleryItem(activeIndex + 1);
+                    }
+                }
+            }
         });
 
         $("#opsdesk_image_preview_modal").on("hidden.bs.modal", function () {
+            activeGallery = [];
+            activeIndex = 0;
             $("#opsdesk_image_preview_img").attr("src", "").attr("alt", "");
+            $("#opsdesk_gallery_strip").empty();
         });
     });
 })(jQuery);

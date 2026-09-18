@@ -36,3 +36,234 @@
 .ht-dialog-width {
     width: 76%;
 }
+
+/* Grouped Bill of Materials & Stock Check Styling */
+.opsdesk-section-toolbar {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.opsdesk-stats-pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.opsdesk-stat-item {
+    font-size: 12px;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-weight: 500;
+}
+
+.opsdesk-stat-item strong {
+    color: #0f172a;
+}
+
+/* Group Cards */
+.opsdesk-group-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.opsdesk-group-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+.opsdesk-group-header {
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.opsdesk-group-header.is-combo {
+    border-left: 5px solid #2563eb;
+    background: #eff6ff;
+}
+
+.opsdesk-group-header.is-standalone {
+    border-left: 5px solid #10b981;
+    background: #f0fdf4;
+}
+
+.opsdesk-group-header.is-custom {
+    border-left: 5px solid #f59e0b;
+    background: #fffbeb;
+}
+
+.opsdesk-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.opsdesk-badge-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.is-combo .opsdesk-badge-icon {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.is-standalone .opsdesk-badge-icon {
+    background: #d1fae5;
+    color: #047857;
+}
+
+.is-custom .opsdesk-badge-icon {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+/* Subtables */
+.opsdesk-components-subtable {
+    margin-bottom: 0 !important;
+}
+
+.opsdesk-components-subtable thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 14px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.opsdesk-components-subtable tbody td {
+    padding: 10px 14px !important;
+    vertical-align: middle !important;
+    font-size: 13px;
+    border-top: 1px solid #f1f5f9 !important;
+}
+
+.opsdesk-components-subtable tbody tr:hover td {
+    background: #f8fafc;
+}
+
+.opsdesk-sku-badge {
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-weight: 700;
+    color: #1e293b;
+    background: #f1f5f9;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+/* Modern Status Badges */
+.opsdesk-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.opsdesk-status-sufficient {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.opsdesk-status-insufficient {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+/* Actions in row */
+.opsdesk-row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.opsdesk-row-actions .btn {
+    border-radius: 4px;
+    font-weight: 500;
+    padding: 3px 8px;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.opsdesk-sub-btn {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    transition: all 0.15s ease;
+}
+
+.opsdesk-sub-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+/* Empty State Card */
+.opsdesk-empty-state-card {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 36px 20px;
+    text-align: center;
+    background: #ffffff;
+}
+
+.opsdesk-empty-state-card i {
+    color: #94a3b8;
+    margin-bottom: 12px;
+}
+
+.opsdesk-empty-state-card h5 {
+    color: #1e293b;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 6px;
+}
+
+.opsdesk-empty-state-card p {
+    color: #64748b;
+    font-size: 13px;
+    max-width: 520px;
+    margin: 0 auto;
+}

@@ -89,27 +89,36 @@
     margin-bottom: 4px;
 }
 
+.opsdesk-thumb-wrapper {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+}
+
 .opsdesk-combo-thumb {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
+    width: 50px;
+    height: 50px;
     padding: 0;
     margin: 0;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     overflow: hidden;
-    background: #f9fafb;
+    background: #f8fafc;
     cursor: pointer;
     vertical-align: middle;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .opsdesk-combo-thumb:hover,
 .opsdesk-combo-thumb:focus {
-    border-color: #d1d5db;
+    border-color: #3b82f6;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
 }
 
 .opsdesk-combo-thumb img {
@@ -119,7 +128,206 @@
     display: block;
 }
 
+.opsdesk-gallery-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(15, 23, 42, 0.88);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    line-height: 14px;
+    letter-spacing: 0.2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+/* Lightbox Modal & Gallery */
+#opsdesk_image_preview_modal {
+    z-index: 1060 !important;
+}
+
+#opsdesk_image_preview_modal .modal-dialog {
+    margin-top: 40px;
+    max-width: 840px;
+}
+
+#opsdesk_image_preview_modal .modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    background: #ffffff;
+}
+
+#opsdesk_image_preview_modal .modal-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#opsdesk_image_preview_modal .modal-header .close {
+    font-size: 26px;
+    font-weight: 400;
+    color: #64748b;
+    opacity: 0.8;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+
+#opsdesk_image_preview_modal .modal-header .close:hover {
+    color: #0f172a;
+    opacity: 1;
+}
+
+.opsdesk-gallery-header-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.opsdesk-gallery-header-info .modal-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.opsdesk-gallery-modal-body {
+    position: relative;
+    padding: 0;
+    background: #090d16;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.opsdesk-gallery-stage {
+    width: 100%;
+    min-height: 380px;
+    max-height: 65vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 60px;
+    position: relative;
+}
+
 .opsdesk-image-preview-full {
     max-width: 100%;
-    max-height: 70vh;
+    max-height: 58vh;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.opsdesk-gallery-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(30, 41, 59, 0.75);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.opsdesk-gallery-nav:hover:not(:disabled) {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
+}
+
+.opsdesk-gallery-nav:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    background: rgba(15, 23, 42, 0.4);
+}
+
+.opsdesk-gallery-prev {
+    left: 14px;
+}
+
+.opsdesk-gallery-next {
+    right: 14px;
+}
+
+.opsdesk-gallery-strip-container {
+    background: #0f172a;
+    padding: 10px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.opsdesk-gallery-strip {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    min-width: min-content;
+}
+
+.opsdesk-strip-thumb {
+    flex: 0 0 54px;
+    width: 54px;
+    height: 54px;
+    padding: 0;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    overflow: hidden;
+    background: #1e293b;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: all 0.2s ease;
+}
+
+.opsdesk-strip-thumb:hover {
+    opacity: 0.9;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.opsdesk-strip-thumb.active {
+    opacity: 1;
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
+    transform: scale(1.05);
+}
+
+.opsdesk-strip-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.opsdesk-gallery-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
 }

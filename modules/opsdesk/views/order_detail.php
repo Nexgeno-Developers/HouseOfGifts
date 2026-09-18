@@ -98,12 +98,23 @@ init_head(); ?>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="opsdesk-meta-item">
-                                            <span class="opsdesk-meta-label"><?php echo _l('opsdesk_combo_name'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo e($order['combo_name']); ?></span>
+                                            <span class="opsdesk-meta-label"><?php echo _l('opsdesk_order_items_selection'); ?></span>
+                                            <span class="opsdesk-meta-value">
+                                                <strong><?php echo e($order['combo_name']); ?></strong>
+                                                <?php if (!empty($order['combos'])) { ?>
+                                                    <div class="mtop5">
+                                                        <?php foreach ($order['combos'] as $oc) { ?>
+                                                            <span class="label label-info mright5" style="display: inline-block; margin-bottom: 3px;">
+                                                                <i class="fa fa-object-group"></i> <?php echo e($oc['combo_name']); ?> (x<?php echo (float) $oc['quantity']; ?>)
+                                                            </span>
+                                                        <?php } ?>
+                                                    </div>
+                                                <?php } ?>
+                                            </span>
                                         </div>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_order_quantity'); ?></span>
-                                            <span class="opsdesk-meta-value"><?php echo (int) $order['quantity']; ?></span>
+                                            <span class="opsdesk-meta-value font-bold"><?php echo (float) $order['quantity']; ?> <?php echo _l('opsdesk_items_summary', ''); ?></span>
                                         </div>
                                         <div class="opsdesk-meta-item">
                                             <span class="opsdesk-meta-label"><?php echo _l('opsdesk_packing_type'); ?></span>
@@ -173,40 +184,345 @@ init_head(); ?>
                             </div>
                         </div>
 
-                        <!-- Combo Line Items Table -->
+                        <!-- Combo & Component Items Section -->
+                        <?php
+                        $render_item_status = function ($status_code) {
+                            switch ($status_code) {
+                                case 'pending':
+                                    return '<span class="label label-info"><i class="fa fa-lock tw-mr-1"></i> ' . _l('opsdesk_reserved') . '</span>';
+                                case 'in_progress':
+                                    return '<span class="label label-warning"><i class="fa fa-spinner fa-spin tw-mr-1"></i> ' . _l('opsdesk_order_status_in_progress') . '</span>';
+                                case 'packed':
+                                    return '<span class="label label-primary"><i class="fa fa-archive tw-mr-1"></i> ' . _l('opsdesk_order_status_packed') . '</span>';
+                                case 'shipped':
+                                    return '<span class="label label-info"><i class="fa fa-truck tw-mr-1"></i> ' . _l('opsdesk_order_status_shipped') . '</span>';
+                                case 'completed':
+                                    return '<span class="label label-success"><i class="fa fa-check-circle tw-mr-1"></i> ' . _l('opsdesk_order_status_completed') . '</span>';
+                                case 'cancelled':
+                                    return '<span class="label label-danger"><i class="fa fa-times-circle tw-mr-1"></i> ' . _l('opsdesk_order_status_cancelled') . '</span>';
+                                default:
+                                    return '<span class="label label-default">' . e(ucfirst((string) $status_code)) . '</span>';
+                            }
+                        };
+
+                        $combos_list = !empty($order['combos']) ? $order['combos'] : [];
+                        if (empty($combos_list) && !empty($order['combo_id'])) {
+                            $combos_list[] = [
+                                'id'          => 0,
+                                'combo_id'    => (int) $order['combo_id'],
+                                'combo_name'  => $order['combo_name'] ?? 'Combo #' . $order['combo_id'],
+                                'quantity'    => (float) ($order['quantity'] ?? 1),
+                                'combo_image' => $order['combo_image'] ?? null,
+                            ];
+                        }
+
+                        $grouped_combos = [];
+                        foreach ($combos_list as $c) {
+                            $cid = !empty($c['id']) ? 'oc_' . $c['id'] : 'c_' . $c['combo_id'];
+                            $grouped_combos[$cid] = [
+                                'info'  => $c,
+                                'items' => [],
+                            ];
+                        }
+
+                        $standalone_items = [];
+                        $other_items = [];
+
+                        if (!empty($order['items']) && is_array($order['items'])) {
+                            foreach ($order['items'] as $item) {
+                                $matched = false;
+                                $is_standalone = (!empty($item['source_type']) && $item['source_type'] === 'standalone');
+
+                                if ($is_standalone) {
+                                    $standalone_items[] = $item;
+                                    continue;
+                                }
+
+                                if (!empty($item['order_combo_id']) && isset($grouped_combos['oc_' . $item['order_combo_id']])) {
+                                    $grouped_combos['oc_' . $item['order_combo_id']]['items'][] = $item;
+                                    $matched = true;
+                                } elseif (!empty($item['combo_id']) && isset($grouped_combos['c_' . $item['combo_id']])) {
+                                    $grouped_combos['c_' . $item['combo_id']]['items'][] = $item;
+                                    $matched = true;
+                                } elseif (count($grouped_combos) === 1) {
+                                    $single_key = array_key_first($grouped_combos);
+                                    $grouped_combos[$single_key]['items'][] = $item;
+                                    $matched = true;
+                                }
+
+                                if (!$matched) {
+                                    $other_items[] = $item;
+                                }
+                            }
+                        }
+
+                        $total_qty_reserved = 0;
+                        if (!empty($order['items']) && is_array($order['items'])) {
+                            foreach ($order['items'] as $it) {
+                                $total_qty_reserved += (float) ($it['quantity_reserved'] ?? 0);
+                            }
+                        }
+                        ?>
+
                         <div class="panel_s mtop15">
                             <div class="panel-body">
-                                <h5 class="no-margin font-bold"><?php echo _l('opsdesk_combo_items'); ?></h5>
-                                <hr class="hr-panel-heading" />
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-bordered">
-                                        <thead>
-                                            <tr>
-                                                <th><?php echo _l('opsdesk_sku'); ?></th>
-                                                <th><?php echo _l('opsdesk_product'); ?></th>
-                                                <th class="text-right"><?php echo _l('opsdesk_qty_per_unit'); ?></th>
-                                                <th class="text-right"><?php echo _l('opsdesk_total_reserved'); ?></th>
-                                                <th><?php echo _l('opsdesk_status'); ?></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($order['items'] as $item) { ?>
-                                            <tr>
-                                                <td><?php echo e($item['sku']); ?></td>
-                                                <td>
-                                                    <?php echo e($item['product_name']); ?>
-                                                    <?php if ((int) $item['is_substitution'] === 1) { ?>
-                                                    <span class="label label-warning mleft5"><?php echo _l('opsdesk_substitution'); ?></span>
-                                                    <?php } ?>
-                                                </td>
-                                                <td class="text-right"><?php echo app_format_number($item['quantity_per_unit']); ?></td>
-                                                <td class="text-right"><?php echo app_format_number($item['quantity_reserved']); ?></td>
-                                                <td>—</td>
-                                            </tr>
-                                            <?php } ?>
-                                        </tbody>
-                                    </table>
+                                <div class="tw-flex tw-justify-between tw-items-center tw-flex-wrap tw-gap-2">
+                                    <div>
+                                        <h5 class="no-margin font-bold text-dark" style="font-size: 16px;">
+                                            <i class="fa fa-cubes text-primary tw-mr-1"></i> <?php echo _l('opsdesk_combo_items'); ?>
+                                        </h5>
+                                        <span class="tw-text-xs tw-text-neutral-500">
+                                            Ordered packages and warehouse components reserved for this order
+                                        </span>
+                                    </div>
+                                    <div class="tw-flex tw-items-center tw-gap-2">
+                                        <span class="label label-default" style="font-size: 12px; padding: 4px 8px;">
+                                            <strong><?php echo count($order['items'] ?? []); ?></strong> SKUs
+                                        </span>
+                                        <span class="label label-success" style="font-size: 12px; padding: 4px 8px;">
+                                            <strong><?php echo app_format_number($total_qty_reserved); ?></strong> Total Units Reserved
+                                        </span>
+                                    </div>
                                 </div>
+                                <hr class="hr-panel-heading" style="margin-top: 14px; margin-bottom: 16px;" />
+
+                                <!-- Combo Groups -->
+                                <?php foreach ($grouped_combos as $g_key => $group) {
+                                    $c_info = $group['info'];
+                                    $c_items = $group['items'];
+                                    if (empty($c_items) && count($grouped_combos) > 1) {
+                                        continue;
+                                    }
+                                    $c_qty = (float) ($c_info['quantity'] ?? 1);
+                                ?>
+                                <div class="opsdesk-component-card">
+                                    <div class="opsdesk-component-header combo-header">
+                                        <div class="tw-flex tw-items-center tw-gap-2">
+                                            <span class="label label-primary" style="font-size: 11px;">
+                                                <i class="fa fa-object-group"></i> <?php echo _l('opsdesk_combos_section'); ?>
+                                            </span>
+                                            <strong class="tw-text-base text-dark"><?php echo e($c_info['combo_name']); ?></strong>
+                                        </div>
+                                        <div class="tw-flex tw-items-center tw-gap-2">
+                                            <span class="tw-text-sm tw-font-semibold tw-text-neutral-700 bg-white tw-px-2.5 tw-py-1 tw-rounded tw-border tw-border-solid tw-border-neutral-200">
+                                                <i class="fa fa-shopping-cart text-primary"></i> Ordered: <strong><?php echo app_format_number($c_qty); ?></strong> Sets
+                                            </span>
+                                            <span class="tw-text-xs tw-text-neutral-500">
+                                                (<?php echo count($c_items); ?> Components)
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table opsdesk-items-table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 72px;" class="text-center"><?php echo _l('opsdesk_product_image'); ?></th>
+                                                    <th style="width: 140px;"><?php echo _l('opsdesk_sku'); ?></th>
+                                                    <th><?php echo _l('opsdesk_product'); ?></th>
+                                                    <th class="text-right" style="width: 150px;"><?php echo _l('opsdesk_qty_per_unit'); ?></th>
+                                                    <th class="text-right" style="width: 160px;"><?php echo _l('opsdesk_total_reserved'); ?></th>
+                                                    <th class="text-center" style="width: 120px;"><?php echo _l('opsdesk_status'); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php if (empty($c_items)) { ?>
+                                                <tr>
+                                                    <td colspan="6" class="text-center text-muted ptop15 pbottom15">
+                                                        No component items found for this combo.
+                                                    </td>
+                                                </tr>
+                                                <?php } else { ?>
+                                                    <?php foreach ($c_items as $item) {
+                                                        $img_url = opsdesk_get_product_image_url($item['product_item_id'] ?? null, $item['sku'] ?? '');
+                                                    ?>
+                                                    <tr>
+                                                        <td class="text-center">
+                                                            <?php if ($img_url) { ?>
+                                                            <div class="opsdesk-img-thumb-container opsdesk-preview-img-trigger"
+                                                                 data-img-url="<?php echo e($img_url); ?>"
+                                                                 data-sku="<?php echo e($item['sku']); ?>"
+                                                                 data-product="<?php echo e($item['product_name']); ?>"
+                                                                 data-toggle="tooltip"
+                                                                 data-placement="right"
+                                                                 title="<?php echo _l('opsdesk_click_to_preview'); ?>">
+                                                                <img src="<?php echo e($img_url); ?>" alt="<?php echo e($item['product_name']); ?>" class="opsdesk-img-thumb" loading="lazy" />
+                                                                <div class="opsdesk-img-zoom-hint"><i class="fa fa-search-plus"></i></div>
+                                                            </div>
+                                                            <?php } else { ?>
+                                                            <div class="opsdesk-img-placeholder" data-toggle="tooltip" title="<?php echo _l('opsdesk_no_image'); ?>">
+                                                                <i class="fa fa-picture-o"></i>
+                                                            </div>
+                                                            <?php } ?>
+                                                        </td>
+                                                        <td>
+                                                            <span class="opsdesk-sku-badge"><?php echo e($item['sku']); ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="tw-font-medium text-dark"><?php echo e($item['product_name']); ?></div>
+                                                            <?php if ((int) $item['is_substitution'] === 1) { ?>
+                                                            <span class="label label-warning tw-mt-1 tw-inline-block">
+                                                                <i class="fa fa-exchange"></i> <?php echo _l('opsdesk_substitution'); ?>
+                                                            </span>
+                                                            <?php } ?>
+                                                        </td>
+                                                        <td class="text-right">
+                                                            <span class="tw-text-neutral-700 tw-font-medium"><?php echo app_format_number($item['quantity_per_unit']); ?></span>
+                                                            <span class="tw-text-xs tw-text-neutral-400">/ set</span>
+                                                        </td>
+                                                        <td class="text-right">
+                                                            <span class="tw-font-bold tw-text-neutral-900" style="font-size: 13px;"><?php echo app_format_number($item['quantity_reserved']); ?></span>
+                                                            <span class="tw-text-xs tw-text-neutral-500">units</span>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <?php echo $render_item_status($order['status']); ?>
+                                                        </td>
+                                                    </tr>
+                                                    <?php } ?>
+                                                <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <?php } ?>
+
+                                <!-- Standalone Products Group -->
+                                <?php if (!empty($standalone_items)) { ?>
+                                <div class="opsdesk-component-card">
+                                    <div class="opsdesk-component-header standalone-header">
+                                        <div class="tw-flex tw-items-center tw-gap-2">
+                                            <span class="label label-success" style="font-size: 11px;">
+                                                <i class="fa fa-cube"></i> <?php echo _l('opsdesk_products_section'); ?>
+                                            </span>
+                                            <strong class="tw-text-base text-dark"><?php echo _l('opsdesk_standalone_products_included'); ?></strong>
+                                        </div>
+                                        <span class="tw-text-xs tw-text-neutral-500">
+                                            (<?php echo count($standalone_items); ?> Products)
+                                        </span>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table opsdesk-items-table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 72px;" class="text-center"><?php echo _l('opsdesk_product_image'); ?></th>
+                                                    <th style="width: 140px;"><?php echo _l('opsdesk_sku'); ?></th>
+                                                    <th><?php echo _l('opsdesk_product'); ?></th>
+                                                    <th class="text-right" style="width: 160px;"><?php echo _l('opsdesk_total_reserved'); ?></th>
+                                                    <th class="text-center" style="width: 120px;"><?php echo _l('opsdesk_status'); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($standalone_items as $item) {
+                                                    $img_url = opsdesk_get_product_image_url($item['product_item_id'] ?? null, $item['sku'] ?? '');
+                                                ?>
+                                                <tr>
+                                                    <td class="text-center">
+                                                        <?php if ($img_url) { ?>
+                                                        <div class="opsdesk-img-thumb-container opsdesk-preview-img-trigger"
+                                                             data-img-url="<?php echo e($img_url); ?>"
+                                                             data-sku="<?php echo e($item['sku']); ?>"
+                                                             data-product="<?php echo e($item['product_name']); ?>"
+                                                             data-toggle="tooltip"
+                                                             data-placement="right"
+                                                             title="<?php echo _l('opsdesk_click_to_preview'); ?>">
+                                                            <img src="<?php echo e($img_url); ?>" alt="<?php echo e($item['product_name']); ?>" class="opsdesk-img-thumb" loading="lazy" />
+                                                            <div class="opsdesk-img-zoom-hint"><i class="fa fa-search-plus"></i></div>
+                                                        </div>
+                                                        <?php } else { ?>
+                                                        <div class="opsdesk-img-placeholder" data-toggle="tooltip" title="<?php echo _l('opsdesk_no_image'); ?>">
+                                                            <i class="fa fa-picture-o"></i>
+                                                        </div>
+                                                        <?php } ?>
+                                                    </td>
+                                                    <td>
+                                                        <span class="opsdesk-sku-badge"><?php echo e($item['sku']); ?></span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="tw-font-medium text-dark"><?php echo e($item['product_name']); ?></div>
+                                                    </td>
+                                                    <td class="text-right">
+                                                        <span class="tw-font-bold tw-text-neutral-900" style="font-size: 13px;"><?php echo app_format_number($item['quantity_reserved']); ?></span>
+                                                        <span class="tw-text-xs tw-text-neutral-500">units</span>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <?php echo $render_item_status($order['status']); ?>
+                                                    </td>
+                                                </tr>
+                                                <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <?php } ?>
+
+                                <!-- Other / Unassigned Items (if any) -->
+                                <?php if (!empty($other_items)) { ?>
+                                <div class="opsdesk-component-card">
+                                    <div class="opsdesk-component-header other-header">
+                                        <div class="tw-flex tw-items-center tw-gap-2">
+                                            <span class="label label-default" style="font-size: 11px;">
+                                                <i class="fa fa-list"></i> <?php echo _l('opsdesk_custom_items'); ?>
+                                            </span>
+                                            <strong class="tw-text-base text-dark"><?php echo _l('opsdesk_custom_items'); ?></strong>
+                                        </div>
+                                        <span class="tw-text-xs tw-text-neutral-500">
+                                            (<?php echo count($other_items); ?> Items)
+                                        </span>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table opsdesk-items-table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 72px;" class="text-center"><?php echo _l('opsdesk_product_image'); ?></th>
+                                                    <th style="width: 140px;"><?php echo _l('opsdesk_sku'); ?></th>
+                                                    <th><?php echo _l('opsdesk_product'); ?></th>
+                                                    <th class="text-right" style="width: 160px;"><?php echo _l('opsdesk_total_reserved'); ?></th>
+                                                    <th class="text-center" style="width: 120px;"><?php echo _l('opsdesk_status'); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($other_items as $item) {
+                                                    $img_url = opsdesk_get_product_image_url($item['product_item_id'] ?? null, $item['sku'] ?? '');
+                                                ?>
+                                                <tr>
+                                                    <td class="text-center">
+                                                        <?php if ($img_url) { ?>
+                                                        <div class="opsdesk-img-thumb-container opsdesk-preview-img-trigger"
+                                                             data-img-url="<?php echo e($img_url); ?>"
+                                                             data-sku="<?php echo e($item['sku']); ?>"
+                                                             data-product="<?php echo e($item['product_name']); ?>"
+                                                             data-toggle="tooltip"
+                                                             data-placement="right"
+                                                             title="<?php echo _l('opsdesk_click_to_preview'); ?>">
+                                                            <img src="<?php echo e($img_url); ?>" alt="<?php echo e($item['product_name']); ?>" class="opsdesk-img-thumb" loading="lazy" />
+                                                            <div class="opsdesk-img-zoom-hint"><i class="fa fa-search-plus"></i></div>
+                                                        </div>
+                                                        <?php } else { ?>
+                                                        <div class="opsdesk-img-placeholder" data-toggle="tooltip" title="<?php echo _l('opsdesk_no_image'); ?>">
+                                                            <i class="fa fa-picture-o"></i>
+                                                        </div>
+                                                        <?php } ?>
+                                                    </td>
+                                                    <td>
+                                                        <span class="opsdesk-sku-badge"><?php echo e($item['sku']); ?></span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="tw-font-medium text-dark"><?php echo e($item['product_name']); ?></div>
+                                                    </td>
+                                                    <td class="text-right">
+                                                        <span class="tw-font-bold tw-text-neutral-900" style="font-size: 13px;"><?php echo app_format_number($item['quantity_reserved']); ?></span>
+                                                        <span class="tw-text-xs tw-text-neutral-500">units</span>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <?php echo $render_item_status($order['status']); ?>
+                                                    </td>
+                                                </tr>
+                                                <?php } ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <?php } ?>
+
                             </div>
                         </div>
 
@@ -631,6 +947,33 @@ init_head(); ?>
     </div>
 </div>
 
+<!-- OpsDesk Product Image Preview Lightbox Modal -->
+<div class="modal fade" id="opsdesk_product_image_preview_modal" tabindex="-1" role="dialog" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="font-size: 26px; line-height: 1;">&times;</button>
+                <div class="tw-flex tw-items-center tw-gap-3">
+                    <h4 class="modal-title font-bold text-dark" id="opsdesk_preview_modal_title" style="margin: 0; font-size: 16px;"></h4>
+                    <span class="opsdesk-sku-badge" id="opsdesk_preview_modal_sku"></span>
+                </div>
+            </div>
+            <div class="modal-body text-center">
+                <img id="opsdesk_preview_modal_img" src="" alt="Product Preview" />
+            </div>
+            <div class="modal-footer tw-flex tw-justify-between tw-items-center">
+                <span class="text-muted tw-text-xs"><i class="fa fa-picture-o tw-mr-1"></i> Warehouse Product Image</span>
+                <div>
+                    <a href="#" id="opsdesk_preview_modal_newtab" target="_blank" rel="noopener noreferrer" class="btn btn-default btn-sm">
+                        <i class="fa fa-external-link tw-mr-1"></i> <?php echo _l('opsdesk_view_high_res'); ?>
+                    </a>
+                    <button type="button" class="btn btn-primary btn-sm" data-dismiss="modal"><?php echo _l('close'); ?></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php init_tail(); ?>
 
 <script>
@@ -977,6 +1320,41 @@ var paymentRequiredMsg = <?php echo json_encode(_l('opsdesk_payment_required_for
               });
           }
 
+          // Product image click-to-preview lightbox handler
+          document.addEventListener('click', function (e) {
+              var trigger = e.target && e.target.closest
+                  ? e.target.closest('.opsdesk-preview-img-trigger')
+                  : null;
+              if (!trigger) {
+                  return;
+              }
+              e.preventDefault();
+              var url = trigger.getAttribute('data-img-url') || '';
+              var sku = trigger.getAttribute('data-sku') || '';
+              var product = trigger.getAttribute('data-product') || '';
+              if (!url) {
+                  return;
+              }
+
+              var titleEl = document.getElementById('opsdesk_preview_modal_title');
+              var skuEl = document.getElementById('opsdesk_preview_modal_sku');
+              var imgEl = document.getElementById('opsdesk_preview_modal_img');
+              var newTabEl = document.getElementById('opsdesk_preview_modal_newtab');
+
+              if (titleEl) { titleEl.textContent = product; }
+              if (skuEl) { skuEl.textContent = sku ? 'SKU: ' + sku : ''; }
+              if (imgEl) { imgEl.src = url; }
+              if (newTabEl) { newTabEl.href = url; }
+
+              if (typeof jQuery !== 'undefined') {
+                  var $modal = jQuery('#opsdesk_product_image_preview_modal');
+                  if (!$modal.parent().is('body')) {
+                      $modal.appendTo('body');
+                  }
+                  $modal.modal('show');
+              }
+          }, true);
+
           if (typeof jQuery !== 'undefined') {
               jQuery('#opsdesk_file_preview_modal').on('hidden.bs.modal', function () {
                   jQuery('#opsdesk_preview_image').removeAttr('src');
@@ -984,6 +1362,13 @@ var paymentRequiredMsg = <?php echo json_encode(_l('opsdesk_payment_required_for
                   galleryItems = [];
                   galleryIndex = 0;
                   setGalleryControls();
+              });
+
+              jQuery('#opsdesk_product_image_preview_modal').on('hidden.bs.modal', function () {
+                  var imgEl = document.getElementById('opsdesk_preview_modal_img');
+                  if (imgEl) {
+                      imgEl.removeAttribute('src');
+                  }
               });
           }
       })();

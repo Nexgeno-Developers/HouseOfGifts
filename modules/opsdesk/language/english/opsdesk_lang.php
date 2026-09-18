@@ -257,3 +257,43 @@ $lang['opsdesk_sort_by_delivery_date_asc'] = 'Delivery Date (sooner first)';
 $lang['opsdesk_sort_by_delivery_date_desc'] = 'Delivery Date (later first)';
 $lang['opsdesk_no_delivery_date']          = 'No date set';
 $lang['opsdesk_delivery_date_high_priority'] = 'High Priority Delivery';
+
+// Multi-Combo & Standalone Product Selection
+$lang['opsdesk_order_items_selection']         = 'Order Items & Combos';
+$lang['opsdesk_combos_section']                = 'Combos';
+$lang['opsdesk_products_section']              = 'Individual Products (From Inventory)';
+$lang['opsdesk_add_combo']                     = 'Add Combo';
+$lang['opsdesk_add_product']                   = 'Add Product';
+$lang['opsdesk_select_product']                = 'Select Product';
+$lang['opsdesk_no_combos_added']               = 'No combos added yet. Click "+ Add Combo" above to add.';
+$lang['opsdesk_no_products_added']             = 'No standalone products added yet. Click "+ Add Product" above to add.';
+$lang['opsdesk_item_source']                   = 'Belongs To';
+$lang['opsdesk_source_standalone']             = 'Direct Product';
+$lang['opsdesk_source_combo']                  = 'Combo: %s';
+$lang['opsdesk_at_least_one_item_required']    = 'Please select at least one combo or one individual product for this order.';
+$lang['opsdesk_combos_included']               = 'Combos Included';
+$lang['opsdesk_standalone_products_included']  = 'Individual Products';
+$lang['opsdesk_single_product']                = 'Single Product';
+$lang['opsdesk_multi_combos_summary']          = '%s Combos';
+$lang['opsdesk_select_items_to_begin']         = 'Add at least one combo or product to view availability.';
+$lang['opsdesk_view_grouped']                  = 'Grouped by Combo / Source';
+$lang['opsdesk_view_consolidated']             = 'SKU Demand Summary';
+$lang['opsdesk_ready_to_fulfill']              = 'Ready to Fulfill';
+$lang['opsdesk_out_of_stock']                  = 'Out of Stock';
+$lang['opsdesk_per_combo']                     = 'Per Combo';
+$lang['opsdesk_total_needed']                  = 'Total Needed';
+$lang['opsdesk_used_in']                       = 'Used In';
+$lang['opsdesk_custom_items']                  = 'Custom / Additional Items';
+$lang['opsdesk_shortage']                      = 'Shortage';
+$lang['opsdesk_surplus']                       = 'Surplus';
+$lang['opsdesk_total_demand']                  = 'Total Demand';
+$lang['opsdesk_in_stock']                      = 'In Stock';
+
+// Product Image Previews
+$lang['opsdesk_product_image']                 = 'Image';
+$lang['opsdesk_click_to_preview']              = 'Click to view large preview';
+$lang['opsdesk_no_image']                      = 'No image available';
+$lang['opsdesk_view_high_res']                 = 'Open in New Tab';
+$lang['opsdesk_reserved']                      = 'Reserved';
+$lang['opsdesk_please_select_combo']           = 'Please select a combo before adding.';
+$lang['opsdesk_please_select_product']         = 'Please select a product before adding.';

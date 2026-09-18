@@ -321,6 +321,58 @@ if (!$CI->db->table_exists($prefix . 'opsdesk_orders')) {
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD COLUMN `delivery_date` DATE DEFAULT NULL AFTER `cancelled_at`");
         $CI->db->query("ALTER TABLE `{$ordersTable}` ADD INDEX `idx_opsdesk_orders_delivery_date` (`delivery_date`)");
     }
+
+    // Version 1.1.5: relax combo_id to NULL and drop strict foreign key
+    $fk_check = $CI->db->query("SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = '{$ordersTable}' 
+        AND CONSTRAINT_NAME = 'fk_opsdesk_orders_combo'")->row_array();
+
+    if (!empty($fk_check)) {
+        $CI->db->query("ALTER TABLE `{$ordersTable}` DROP FOREIGN KEY `fk_opsdesk_orders_combo`");
+    }
+
+    $CI->db->query("ALTER TABLE `{$ordersTable}` MODIFY COLUMN `combo_id` int(11) NULL DEFAULT NULL");
+}
+
+// Version 1.1.5: Create tblopsdesk_order_combos table
+if (!$CI->db->table_exists($prefix . 'opsdesk_order_combos')) {
+    $CI->db->query("CREATE TABLE `{$prefix}opsdesk_order_combos` (
+        `id` int(11) NOT NULL AUTO_INCREMENT,
+        `order_id` int(11) NOT NULL,
+        `combo_id` int(11) NOT NULL,
+        `combo_name` varchar(191) NOT NULL DEFAULT '',
+        `quantity` decimal(15,4) NOT NULL DEFAULT 1.0000,
+        `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `idx_opsdesk_order_combos_order_id` (`order_id`),
+        KEY `idx_opsdesk_order_combos_combo_id` (`combo_id`),
+        CONSTRAINT `fk_opsdesk_order_combos_order`
+            FOREIGN KEY (`order_id`) REFERENCES `{$prefix}opsdesk_orders` (`id`)
+            ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT `fk_opsdesk_order_combos_combo`
+            FOREIGN KEY (`combo_id`) REFERENCES `{$prefix}opsdesk_combos` (`id`)
+            ON DELETE RESTRICT ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET={$charset};");
+}
+
+// Version 1.1.5: Source tracking on tblopsdesk_order_items
+$itemsTable = $prefix . 'opsdesk_order_items';
+if ($CI->db->table_exists($itemsTable)) {
+    if (!$CI->db->field_exists('order_combo_id', $itemsTable)) {
+        $after = $CI->db->field_exists('order_id', $itemsTable) ? ' AFTER `order_id`' : '';
+        $CI->db->query("ALTER TABLE `{$itemsTable}` ADD COLUMN `order_combo_id` int(11) DEFAULT NULL{$after}");
+        $CI->db->query("ALTER TABLE `{$itemsTable}` ADD KEY `idx_opsdesk_order_items_order_combo_id` (`order_combo_id`)");
+    }
+    if (!$CI->db->field_exists('source_type', $itemsTable)) {
+        $after = $CI->db->field_exists('original_item_id', $itemsTable) ? ' AFTER `original_item_id`' : '';
+        $CI->db->query("ALTER TABLE `{$itemsTable}` ADD COLUMN `source_type` varchar(50) NOT NULL DEFAULT 'combo'{$after}");
+        $CI->db->query("ALTER TABLE `{$itemsTable}` ADD KEY `idx_opsdesk_order_items_source_type` (`source_type`)");
+    }
+    if (!$CI->db->field_exists('source_name', $itemsTable)) {
+        $after = $CI->db->field_exists('source_type', $itemsTable) ? ' AFTER `source_type`' : '';
+        $CI->db->query("ALTER TABLE `{$itemsTable}` ADD COLUMN `source_name` varchar(191) DEFAULT NULL{$after}");
+    }
 }
 
 // Widen orders.packing_type from the legacy ENUM to VARCHAR so user-managed
@@ -329,5 +381,6 @@ if ($CI->db->field_exists('packing_type', $prefix . 'opsdesk_orders')) {
     $CI->db->query("ALTER TABLE `{$prefix}opsdesk_orders` MODIFY `packing_type` VARCHAR(50) NOT NULL DEFAULT 'box'");
 }
 
-add_option('opsdesk_module_version', '1.1.4');
+add_option('opsdesk_module_version', '1.1.5');
+update_option('opsdesk_module_version', '1.1.5');
 add_option('opsdesk_bypass_stock_check', '0');

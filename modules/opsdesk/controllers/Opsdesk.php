@@ -1483,7 +1483,7 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             show_404();
         }
 
-        if (!opsdesk_can_create_orders()) {
+        if (!opsdesk_can_create_orders() && !has_permission('opsdesk', '', 'view') && !staff_can('view', 'opsdesk')) {
             ajax_access_denied();
         }
 
@@ -1567,6 +1567,8 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
         $prefill = [
             'combo_id'       => (int) $this->input->get('combo_id'),
             'quantity'       => max(1, (int) $this->input->get('quantity')),
+            'combos'         => [],
+            'products'       => [],
             'customer_id'    => (int) $this->input->get('customer_id'),
             'customer_city'  => trim($this->input->get('customer_city') ?? ''),
             'delivery_date'  => trim($this->input->get('delivery_date') ?? ''),
@@ -1575,6 +1577,22 @@ $this->load->model('opsdesk/opsdesk_product_statuses_model');
             'added'         => [],
             'quantities'    => [],
         ];
+
+        $combos_param = $this->input->get('combos');
+        if ($combos_param) {
+            $decoded_combos = is_string($combos_param) ? json_decode($combos_param, true) : $combos_param;
+            if (is_array($decoded_combos)) {
+                $prefill['combos'] = $decoded_combos;
+            }
+        }
+
+        $products_param = $this->input->get('products');
+        if ($products_param) {
+            $decoded_products = is_string($products_param) ? json_decode($products_param, true) : $products_param;
+            if (is_array($decoded_products)) {
+                $prefill['products'] = $decoded_products;
+            }
+        }
 
         $items_json = $this->input->get('items');
         if ($items_json) {

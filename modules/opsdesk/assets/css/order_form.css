@@ -267,3 +267,56 @@
     max-width: 520px;
     margin: 0 auto;
 }
+
+/* Subtle Compact Status Notice */
+.opsdesk-subtle-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+    transition: all 0.2s ease;
+}
+
+.opsdesk-subtle-notice.notice-success {
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+}
+
+.opsdesk-subtle-notice.notice-warning {
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+}
+
+.opsdesk-subtle-notice.notice-danger {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.opsdesk-subtle-notice i {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.opsdesk-subtle-notice .notice-highlight {
+    font-weight: 600;
+}
+
+.opsdesk-action-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+

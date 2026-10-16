@@ -264,16 +264,9 @@
                             <i class="fa fa-spinner fa-spin fa-2x text-primary"></i>
                         </div>
 
-                        <div id="opsdesk_order_alert" class="hide alert mtop15"></div>
+                        <div id="opsdesk_order_alert" class="hide mtop10"></div>
 
-                        <div id="opsdesk_order_summary" class="hide alert mtop15"></div>
-
-                        <?php if (opsdesk_bypass_stock_check()) { ?>
-                        <div class="alert alert-warning mtop15">
-                            <i class="fa fa-exclamation-triangle"></i>
-                            <?php echo _l('opsdesk_bypass_stock_check_notice'); ?>
-                        </div>
-                        <?php } ?>
+                        <div id="opsdesk_order_summary" class="hide" style="margin-top: 12px; margin-bottom: 12px;"></div>
 
                         <div class="row mtop20">
                             <div class="col-md-4">

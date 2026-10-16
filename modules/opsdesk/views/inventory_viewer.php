@@ -181,24 +181,18 @@
                             <i class="fa fa-spinner fa-spin fa-2x text-primary"></i>
                         </div>
 
-                        <div id="opsdesk_order_alert" class="hide alert mtop15"></div>
+                        <div id="opsdesk_order_alert" class="hide mtop10"></div>
 
-                        <div id="opsdesk_order_summary" class="hide alert mtop15"></div>
-
-                        <?php if (opsdesk_bypass_stock_check()) { ?>
-                        <div class="alert alert-warning mtop15">
-                            <i class="fa fa-exclamation-triangle"></i>
-                            <?php echo _l('opsdesk_bypass_stock_check_notice'); ?>
+                        <div class="opsdesk-action-footer">
+                            <div id="opsdesk_order_summary" class="hide" style="margin: 0; flex: 1 1 auto; max-width: 750px;"></div>
+                            <?php if (opsdesk_can_create_orders()) { ?>
+                            <div id="opsdesk_create_order_wrap" class="hide" style="margin-left: auto;">
+                                <a href="#" id="opsdesk_create_order_btn" class="btn btn-success">
+                                    <i class="fa fa-shopping-cart"></i> <?php echo _l('opsdesk_create_order'); ?>
+                                </a>
+                            </div>
+                            <?php } ?>
                         </div>
-                        <?php } ?>
-
-                        <?php if (opsdesk_can_create_orders()) { ?>
-                        <div id="opsdesk_create_order_wrap" class="hide mtop20">
-                            <a href="#" id="opsdesk_create_order_btn" class="btn btn-success btn-lg">
-                                <i class="fa fa-shopping-cart"></i> <?php echo _l('opsdesk_create_order'); ?>
-                            </a>
-                        </div>
-                        <?php } ?>
                     </div>
                 </div>
             </div>

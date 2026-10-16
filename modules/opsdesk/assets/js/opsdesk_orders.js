@@ -265,21 +265,32 @@ function getCsrfPostData() {
     }
 
     var summary = $("#opsdesk_order_summary");
-    summary.removeClass("hide alert-success alert-danger alert-warning");
+    summary.removeClass("hide");
+
+    var shortageLabel = insufficientCount + " " + (insufficientCount === 1 ? "component insufficient" : "components insufficient");
 
     if (data.is_fulfillable) {
-      summary.addClass("alert-success").html('<i class="fa fa-check-circle"></i> ' + (opsdeskOrderLang.allSufficient || "All components are sufficient in stock."));
+      summary.html(
+        '<div class="opsdesk-subtle-notice notice-success">' +
+          '<i class="fa fa-check-circle"></i> ' +
+          '<span><strong class="notice-highlight">All components in stock.</strong> Ready to confirm order.</span>' +
+        '</div>'
+      );
       updateSubmitState(true);
     } else if (typeof opsdeskBypassStockCheck !== "undefined" && opsdeskBypassStockCheck) {
-      summary.addClass("alert-warning").html(
-        '<i class="fa fa-exclamation-triangle"></i> ' +
-          (opsdeskOrderLang.componentsInsufficient || "%s components are insufficient in stock.").replace("%s", insufficientCount)
+      summary.html(
+        '<div class="opsdesk-subtle-notice notice-warning">' +
+          '<i class="fa fa-info-circle"></i> ' +
+          '<span><strong class="notice-highlight">' + shortageLabel + '.</strong> Stock check bypass is active &mdash; order submission is permitted.</span>' +
+        '</div>'
       );
       updateSubmitState(true);
     } else {
-      summary.addClass("alert-danger").html(
-        '<i class="fa fa-exclamation-circle"></i> ' +
-          (opsdeskOrderLang.componentsInsufficient || "%s components are insufficient in stock.").replace("%s", insufficientCount)
+      summary.html(
+        '<div class="opsdesk-subtle-notice notice-danger">' +
+          '<i class="fa fa-exclamation-circle"></i> ' +
+          '<span><strong class="notice-highlight">' + shortageLabel + '.</strong> Adjust quantities or substitute out-of-stock items before submitting.</span>' +
+        '</div>'
       );
       updateSubmitState(false);
     }

@@ -701,7 +701,22 @@ function getCsrfPostData() {
       return;
     }
 
-    if (opsdeskOrderPrefill.combo_id) {
+    if (opsdeskOrderPrefill.combos && opsdeskOrderPrefill.combos.length > 0) {
+      $.each(opsdeskOrderPrefill.combos, function (i, c) {
+        var cId = parseInt(c.combo_id, 10);
+        var cQty = parseFloat(c.quantity) || 1;
+        var cName = c.combo_name;
+        if (!cName) {
+          var $opt = $('#opsdesk_quick_combo_id option[value="' + cId + '"]');
+          cName = $opt.data("name") || $opt.text() || "Combo #" + cId;
+        }
+        selectedCombos.push({
+          combo_id: cId,
+          combo_name: cName,
+          quantity: cQty,
+        });
+      });
+    } else if (opsdeskOrderPrefill.combo_id) {
       var cId = parseInt(opsdeskOrderPrefill.combo_id, 10);
       var cQty = parseFloat(opsdeskOrderPrefill.quantity) || 1;
       var $opt = $('#opsdesk_quick_combo_id option[value="' + cId + '"]');
@@ -714,6 +729,26 @@ function getCsrfPostData() {
       });
     }
 
+    if (opsdeskOrderPrefill.products && opsdeskOrderPrefill.products.length > 0) {
+      $.each(opsdeskOrderPrefill.products, function (i, p) {
+        var pId = parseInt(p.product_id, 10);
+        var pQty = parseFloat(p.quantity) || 1;
+        var pName = p.product_name;
+        var pSku = p.sku;
+        if (!pName || !pSku) {
+          var $opt = $('#opsdesk_quick_product_id option[value="' + pId + '"]');
+          pName = pName || $opt.data("name") || $opt.text();
+          pSku = pSku || $opt.data("sku") || "";
+        }
+        selectedProducts.push({
+          product_id: pId,
+          product_name: pName,
+          sku: pSku,
+          quantity: pQty,
+        });
+      });
+    }
+
     if (opsdeskOrderPrefill.substitutions) {
       overrides.substitutions = opsdeskOrderPrefill.substitutions;
     }
@@ -723,10 +758,17 @@ function getCsrfPostData() {
     if (opsdeskOrderPrefill.added) {
       overrides.added = opsdeskOrderPrefill.added;
     }
+    if (opsdeskOrderPrefill.quantities) {
+      overrides.quantities = opsdeskOrderPrefill.quantities;
+    }
 
     renderSelectedCombosTable();
     renderSelectedProductsTable();
     syncInputs();
+
+    if (selectedCombos.length > 0 || selectedProducts.length > 0) {
+      debouncedStockCheck();
+    }
   }
 
   function initCustomerSearch() {
